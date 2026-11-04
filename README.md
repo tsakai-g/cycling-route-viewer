@@ -2,7 +2,7 @@
 
 FIT / GPX のサイクリング記録を、地図上で一覧・検索・重ね合わせ表示し、クリックした地点のGoogleストリートビューを開ける **local-first** の静的 Web アプリです。独自サーバー不要で GitHub Pages にそのまま配置できます。
 
-![App: Route Atlas](assets/favicon.svg)
+[![App: Route Atlas](assets/favicon.svg)](https://tsakai-g.github.io/cycling-route-viewer/)
 
 ## デモでできること
 
