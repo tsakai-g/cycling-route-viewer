@@ -6,7 +6,7 @@
   <meta name="description" content="FIT / GPXのサイクリング経路をローカルで重ねて閲覧できるWebアプリ。">
   <meta name="color-scheme" content="light">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <title>Cycling Route Viewer — GPS走行ログの地図ビューア</title>
+  <title>Route Atlas v0.3 — GPS走行ログの地図ビューア</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
   <style>
@@ -95,7 +95,6 @@ h1{font-size:26px;line-height:1.5;letter-spacing:-1.3px;color:#173834;margin:0 0
 .detail-grid div{display:flex;flex-direction:column;gap:3px}
 .detail-grid span{font-size:9px;color:#9bad9f}
 .detail-grid b{font-size:11px;color:#3a6454}
-.demo-watermark{position:absolute;bottom:5px;right:14px;color:#54746577;font-size:9px;font-weight:700;letter-spacing:1px;z-index:600;pointer-events:none}
 .drop-hint{position:fixed;inset:0;background:#0d413d8c;backdrop-filter:blur(3px);z-index:10000;display:none;place-items:center;pointer-events:none}
 .dragging>.drop-hint{display:grid}
 .drop-hint>div{background:white;border:3px dashed #4ea989;border-radius:22px;min-width:350px;max-width:80%;padding:55px 35px;text-align:center}
@@ -109,9 +108,8 @@ h1{font-size:26px;line-height:1.5;letter-spacing:-1.3px;color:#173834;margin:0 0
 .dialog-caption{font-size:11px;color:#8d6558}
 .sr-only{position:absolute;clip:rect(0,0,0,0);width:1px;height:1px;overflow:hidden;white-space:nowrap}
 @media(max-width:920px){.sidebar{width:345px;flex-basis:345px}.map-toolbar{left:12px;right:12px;top:12px}.map-heading small{display:none}.button-zoom{margin-right:45px}.detail{left:12px;bottom:12px}}
-@media(max-width:650px){.app-shell{height:100dvh;min-height:700px;display:flex;flex-direction:column}.sidebar{width:100%;flex-basis:45%;height:45%;box-shadow:none}.masthead{height:65px;padding:12px 18px}.sidebar-scroll{display:block}.welcome{padding:13px 20px 10px}.welcome h1{font-size:19px;line-height:1.3}.welcome h1 br{display:none}.welcome .eyebrow,.welcome>p:last-child{display:none}.upload-actions{padding:7px 20px}.message{padding:2px 20px 8px}.metrics{margin:1px 20px 15px;padding:10px}.metrics b{font-size:19px}.collection{padding:0 20px 15px}.sidebar-footer{padding:8px 20px 10px}.main-map{min-height:55%}.map-toolbar{top:7px}.map-heading{padding:8px 10px}.button-zoom{padding:9px;font-size:10px;margin-right:42px}.detail{bottom:17px;min-width:0;width:calc(100% - 24px);max-width:none;padding:10px}.detail-grid{grid-template-columns:repeat(3,1fr);gap:7px}.demo-watermark{display:none}}
+@media(max-width:650px){.app-shell{height:100dvh;min-height:700px;display:flex;flex-direction:column}.sidebar{width:100%;flex-basis:45%;height:45%;box-shadow:none}.masthead{height:65px;padding:12px 18px}.sidebar-scroll{display:block}.welcome{padding:13px 20px 10px}.welcome h1{font-size:19px;line-height:1.3}.welcome h1 br{display:none}.welcome .eyebrow,.welcome>p:last-child{display:none}.upload-actions{padding:7px 20px}.message{padding:2px 20px 8px}.metrics{margin:1px 20px 15px;padding:10px}.metrics b{font-size:19px}.collection{padding:0 20px 15px}.sidebar-footer{padding:8px 20px 10px}.main-map{min-height:55%}.map-toolbar{top:7px}.map-heading{padding:8px 10px}.button-zoom{padding:9px;font-size:10px;margin-right:42px}.detail{bottom:17px;min-width:0;width:calc(100% - 24px);max-width:none;padding:10px}.detail-grid{grid-template-columns:repeat(3,1fr);gap:7px}}
 
-.demo-watermark[hidden]{display:none}
 
 /* The Street View shortcut intentionally sits above the map, but below the route toolbar. */
 .streetview-hint{position:absolute;z-index:710;left:24px;top:83px;max-width:calc(100% - 48px);padding:10px 14px;display:flex;align-items:center;gap:9px;border:1px solid #e3eae5;border-radius:11px;background:#fffffff2;color:#385c51;box-shadow:0 3px 16px #24403016;font-size:11px;pointer-events:auto}
@@ -137,6 +135,62 @@ h1{font-size:26px;line-height:1.5;letter-spacing:-1.3px;color:#173834;margin:0 0
 .protocol-warning p{margin:8px 0 0}
 .protocol-warning p strong{display:inline;font-size:inherit;margin:0}
 .protocol-warning code{display:inline;overflow-wrap:anywhere;padding:1px 3px;border-radius:3px;background:#f8f1e6;color:#895a24}
+
+/* v0.3: precision, stroke weight and four selectable map backgrounds. */
+.map-settings{position:absolute;z-index:795;top:84px;right:20px;width:238px;background:#ffffffed;border:1px solid #e5ede7;border-radius:13px;box-shadow:0 6px 23px #1c3d3222;padding:13px 14px;display:flex;flex-direction:column;gap:10px;backdrop-filter:blur(5px)}
+.map-settings label{display:flex;flex-direction:column;gap:5px;color:#375e51;font-size:10px;font-weight:800;letter-spacing:.15px}
+.map-settings select{width:100%;background:#f6faf7;border:1px solid #dfe9e3;border-radius:8px;color:#2d5548;font-size:11px;font-weight:600;padding:8px 7px}
+.map-settings .width-control>span{display:flex;align-items:center;justify-content:space-between}
+.map-settings output{font-weight:800;font-variant-numeric:tabular-nums;color:#247662}
+.map-settings input[type=range]{width:100%;accent-color:#1e775f;cursor:pointer;margin:5px 0 0}
+.map-coverage{font-size:9px;color:#7b6852;background:#fff8e8;padding:6px 8px;border-radius:7px;margin:0;line-height:1.45}
+.map-coverage[hidden]{display:none}
+.ride{gap:9px;min-height:78px;padding-right:2px}
+.ride-main strong{font-size:12px;margin-bottom:5px}
+.ride-main small{white-space:normal;line-height:1.45}
+.ride-main .ride-date{font-size:9px;color:#829a8e;margin-bottom:4px}
+.ride-main .ride-metrics{font-size:11px;font-weight:700;color:#376d58;overflow-wrap:anywhere}
+.ride-delete{flex:0 0 28px;width:28px;height:28px;border:1px solid transparent;border-radius:8px;background:none;color:#ac7773;font-size:21px;line-height:1;display:grid;place-items:center}
+.ride-delete:hover{background:#fff1ee;border-color:#f1d8d1;color:#ba3838}
+.route-bottom{position:absolute;bottom:20px;left:22px;z-index:795;width:min(730px,calc(100% - 44px));display:flex;flex-direction:column;gap:9px;pointer-events:none}
+.route-bottom>.detail,.route-bottom>.elevation-panel{pointer-events:auto}
+.route-bottom>.detail{position:static;left:auto;bottom:auto;min-width:0;max-width:none;width:100%;padding:13px 18px;box-shadow:0 4px 20px #253e3124}
+.detail-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.detail-heading strong{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#21483a}
+.detail-isolate{border:1px solid #d9e9e0;background:#eff7f1;color:#286c53;border-radius:7px;padding:6px 9px;flex-shrink:0;font-size:10px;font-weight:800}
+.detail-isolate:hover{background:#dff2e5}
+.detail-summary{font-size:12px;font-weight:800;color:#237760;margin:7px 0 10px;font-variant-numeric:tabular-nums}
+.route-bottom .detail-grid{grid-template-columns:repeat(3,1fr);gap:8px 18px}
+.detail-caution{display:block;font-size:9px;color:#9a7044;margin-top:8px;line-height:1.5}
+.elevation-panel{background:#fffffff3;border:1px solid #e5ece7;border-radius:13px;box-shadow:0 6px 24px #21392b24;padding:11px 14px 10px}
+.elevation-panel[hidden]{display:none}
+.elevation-heading{display:flex;align-items:baseline;gap:14px;padding:0 4px 3px}
+.elevation-heading strong{font-size:12px;color:#254e3e}
+.elevation-heading span{font-size:11px;color:#6f897e;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#elevation-chart{display:block;width:100%;height:164px;overflow:visible;touch-action:pan-y;cursor:crosshair}
+.elevation-footer{display:flex;align-items:center;justify-content:space-between;gap:5px;color:#829c8f;font-size:10px;padding:0 5px;min-height:13px}
+.elevation-footer span:last-child{color:#477260;text-align:right;font-variant-numeric:tabular-nums}
+/* Attributions are visible over topographic maps even when the chart is open. */
+.leaflet-control-attribution{font-size:9px!important;max-width:min(680px,75vw);white-space:normal!important;text-align:right}
+@media(max-width:980px){.map-settings{right:11px;width:205px}.route-bottom{left:12px;bottom:12px;width:min(650px,calc(100% - 24px))}.route-bottom .detail-grid{gap:6px 12px}}
+@media(max-width:650px){
+ .map-settings{top:91px;right:8px;width:175px;padding:8px;gap:5px}
+ .map-settings label{font-size:9px;gap:3px}.map-settings select{font-size:10px;padding:5px}
+ .map-settings input[type=range]{margin:2px 0}
+ .ride{min-height:72px}
+ .route-bottom{left:8px;bottom:8px;width:calc(100% - 16px);max-height:62%;overflow-y:auto;gap:5px}
+ .route-bottom>.detail{padding:8px 11px}.route-bottom .detail-grid{grid-template-columns:repeat(3,1fr);gap:5px}
+ .detail-summary{margin:5px 0;font-size:11px}.route-bottom .detail-grid b{font-size:10px}
+ .elevation-panel{padding:7px}#elevation-chart{height:112px}
+ .elevation-heading strong{font-size:10px}.elevation-heading span{font-size:9px}
+ .elevation-footer{font-size:9px}
+}
+
+.gsi-zoom-credit{position:absolute;right:20px;top:330px;width:238px;z-index:795;background:#ffffffec;padding:9px 11px;border:1px solid #e8e1d5;border-radius:9px;box-shadow:0 4px 15px #1c3d3220;color:#755e4b;font-size:9px;line-height:1.45}
+.gsi-zoom-credit[hidden]{display:none}
+.gsi-zoom-credit a{color:#34745e}
+@media(max-width:980px){.gsi-zoom-credit{right:11px;width:205px}}
+@media(max-width:650px){.gsi-zoom-credit{right:8px;top:252px;width:175px;font-size:8px}}
 
 </style>
   
@@ -173,7 +227,7 @@ h1{font-size:26px;line-height:1.5;letter-spacing:-1.3px;color:#173834;margin:0 0
         <input id="folder-input" class="sr-only" type="file" webkitdirectory multiple>
       </div>
       <progress id="import-progress" class="import-progress" max="100" value="0" hidden></progress>
-      <div id="message" class="message" role="status" aria-live="polite">架空のデモ経路を表示しています。</div>
+      <div id="message" class="message" role="status" aria-live="polite">FIT / GPXファイルを追加すると、経路を表示できます。</div>
       <div class="metrics" aria-label="経路の集計">
         <div><span>全経路</span><b id="stat-total">0</b><small>件</small></div>
         <div><span>表示中</span><b id="stat-shown">0</b><small>件</small></div>
@@ -187,7 +241,7 @@ h1{font-size:26px;line-height:1.5;letter-spacing:-1.3px;color:#173834;margin:0 0
         </label>
         <div class="filters">
           <label><span class="sr-only">年で絞り込み</span><select id="year-filter"><option value="">すべての年</option></select></label>
-          <label><span class="sr-only">形式で絞り込み</span><select id="format-filter"><option value="">すべての形式</option><option value="GPX">GPX</option><option value="FIT">FIT</option><option value="DEMO">デモ</option></select></label>
+          <label><span class="sr-only">形式で絞り込み</span><select id="format-filter"><option value="">すべての形式</option><option value="GPX">GPX</option><option value="FIT">FIT</option></select></label>
         </div>
         <div class="selection-actions">
           <button id="show-all" type="button">表示を選択</button><span aria-hidden="true">/</span><button id="hide-all" type="button">表示を解除</button>
@@ -198,9 +252,8 @@ h1{font-size:26px;line-height:1.5;letter-spacing:-1.3px;color:#173834;margin:0 0
       </section>
     </div>
     <div class="sidebar-footer">
-      <button id="demo-button" type="button">デモ経路</button>
       <button id="export" type="button">GeoJSON出力</button>
-      <button id="clear-button" type="button" class="danger">データ削除</button>
+      <button id="clear-button" type="button" class="danger">全経路を削除</button>
       <div class="privacy-label"><span aria-hidden="true">●</span> GPSファイルをサーバーにアップロードしません</div>
     </div>
   </aside>
@@ -209,6 +262,30 @@ h1{font-size:26px;line-height:1.5;letter-spacing:-1.3px;color:#173834;margin:0 0
       <div class="map-heading"><span class="map-heading-marker"></span><span>CYCLING ROUTES</span><small>経路の重ね合わせ</small></div>
       <button id="zoom-all" type="button" class="button button-zoom">表示経路に合わせる <span aria-hidden="true">⌗</span></button>
     </div>
+    <section class="map-settings" aria-label="表示設定">
+      <label for="map-style"><span>背景地図</span>
+        <select id="map-style">
+          <option value="osm">OpenStreetMap</option>
+          <option value="gsi-topo">国土地理院・地形図</option>
+          <option value="gsi-relief">国土地理院・色別標高図</option>
+          <option value="gsi-shade">国土地理院・陰影起伏図</option>
+        </select>
+      </label>
+      <label for="route-precision"><span>経路精度</span>
+        <select id="route-precision">
+          <option value="standard">標準（15m）</option>
+          <option value="full">最高精度（元の全点）</option>
+        </select>
+      </label>
+      <label for="route-width" class="width-control"><span>線の太さ <output id="route-width-value" for="route-width">6.4px</output></span>
+        <input id="route-width" type="range" min="3" max="10" step="0.2" value="6.4">
+      </label>
+      <p id="map-coverage" class="map-coverage" hidden>国土地理院の地図は日本国内向けです。</p>
+    </section>
+    <aside id="gsi-zoom-credit" class="gsi-zoom-credit" hidden aria-label="地理院地図の追加出典">
+      低ズーム地図の出典：GEBCO Digital Atlas（BODC / IOC / IHO, 2003）、海上保安庁許可第292502号、VMAP0（NIMA / USGS, 1997）。
+      <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">詳細出典</a>
+    </aside>
     <div class="streetview-hint" aria-label="ストリートビュー操作の案内">
       <span class="streetview-hint-icon" aria-hidden="true">◉</span>
       <span>地図をクリック → <b>ストリートビュー</b></span>
@@ -220,22 +297,181 @@ h1{font-size:26px;line-height:1.5;letter-spacing:-1.3px;color:#173834;margin:0 0
       <p>このHTMLを直接開く <code>file://</code> 方式では、OpenStreetMapの地図タイルが403で拒否されます。</p>
       <p>配布フォルダ内の <strong>run-local.cmd</strong> をダブルクリックし、<code>http://127.0.0.1:8000/</code> で開いてください。Pythonがない場合はREADMEを参照してください。</p>
     </section>
-    <div class="detail" id="detail" aria-live="polite"><span class="detail-empty">一覧の経路名をクリックすると詳細を表示できます。</span></div>
-    <div class="demo-watermark">DEMO ROUTES ARE SYNTHETIC</div>
+    <div class="route-bottom">
+      <div class="detail" id="detail" aria-live="polite"><span class="detail-empty">一覧の経路名をクリックすると詳細を表示できます。</span></div>
+      <section id="elevation-panel" class="elevation-panel" aria-label="選択経路の標高プロファイル" hidden>
+        <div class="elevation-heading"><strong>標高プロファイル</strong><span id="elevation-route-name"></span></div>
+        <svg id="elevation-chart" viewBox="0 0 680 175" role="img" aria-label="距離に対する標高の変化"></svg>
+        <div class="elevation-footer"><span>距離（km） →</span><span id="elevation-hover">GPSログの標高値から作成</span></div>
+      </section>
+    </div>
   </main>
   <div class="drop-hint" aria-hidden="true"><div><b>FIT・GPXファイルをドロップ</b><span>複数ファイルをまとめて追加できます</span></div></div>
 </div>
 <dialog id="help-dialog" class="help-dialog">
   <div class="dialog-header"><h2>使い方とデータの取り扱い</h2><button type="button" id="close-help" class="icon-button" aria-label="閉じる">×</button></div>
-  <p>左側の「FIT / GPXを追加」またはドラッグ＆ドロップでファイルを読み込みます。経路のチェックで重ね合わせを切り替え、経路名を選ぶとその位置へ移動します。</p>
+  <p>左側からFIT/GPXファイルを追加します。経路のチェックで重ね合わせを切り替え、経路名をクリックするとズームします。各行の削除ボタンは確認後にIndexedDB内の記録も削除します（元ファイルはそのままです）。</p>
+  <p><strong>表示設定：</strong> 背景地図はOpenStreetMap・国土地理院の地形図・色別標高図・陰影起伏図を切り替えられます。標準精度は15mの簡略化、最高精度は元の全GPS点です。線の太さは初期値6.4pxで変更可能です。設定はこのブラウザに保存されます。</p>
+  <p><strong>標高：</strong> 経路に標高情報があれば、距離と「D+累積上昇 (最低-最高) m」を表示します。D+は記録値を5点中央値で平滑化し、3m未満の細かな逆行を除いた推定値のため、機器表示と異なる場合があります。チェックが1経路だけのときに標高プロファイルを表示します。標高がないファイルでは表示されません。</p>
   <p><strong>ストリートビュー：</strong> 地図の任意の地点、または表示中の経路をクリックすると、その地点の緯度・経度を示すマーカーとポップアップが開きます。「Googleストリートビューで開く」をクリックすると新しいタブでGoogleマップのストリートビューを表示します。見つからない地点では画像が表示されない、または近くの撮影地点へ移動する場合があります。ポップアップには通常のGoogleマップで地点を開くリンクもあります。</p>
   <p><strong>GPSファイルはサーバーに送信されません。</strong> 読み込んだ経路は現在のブラウザのIndexedDBへ保存されます。ブラウザのデータ削除・プライベートモードなどでは消えることがあります。元のFIT/GPXファイルは保管してください。</p>
-  <p>地図画像はOpenStreetMapの地図タイルサーバーから取得するため、表示地域に対応するタイル座標などはその提供者に伝わります。ストリートビューのリンクを押すと、クリックした地点の座標がGoogleにURLとして送信されます（クリックしただけではGoogleへは送信しません）。</p>
-  <p>初期の7経路は画面確認用に合成した架空のデータです。実在する道路を正確にたどるものではありません。FIT解析は標準的な位置記録に対応した軽量実装です（特殊なFITファイルには未対応の場合があります）。</p>
+  <p>背景地図のタイルをOpenStreetMapまたは国土地理院から取得するため、表示地域やアクセス情報は地図提供者に伝わります。国土地理院の地形・標高地図は日本国内向けです。ストリートビューのリンクを押すと、座標がGoogleへ渡されます。</p>
+  <p>初期状態にデモ経路はありません。以前のv0.2で保存したログはGPS点列を保持したままv0.3の表示用情報を再計算します。FIT解析は標準的な位置記録に対応した軽量実装です（特殊なFITファイルには未対応の場合があります）。</p>
   <p class="dialog-caption">公開サイトには個人の走行ログを含めないでください。GeoJSON出力には個人の位置情報が含まれます。</p>
 </dialog>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
 <script>
+/** Elevation processing for GPX/FIT tracks.
+ * Min/max describe recorded (not interpolated) heights. Ascent is an estimate:
+ * median-of-five smoothing followed by a 3 m reversal deadband. Breaks in
+ * altitude samples or track segments never contribute to cumulative gain.
+ */
+const ELEVATION_RAD = Math.PI / 180;
+const REVERSAL_METERS = 3;
+
+function segmentDistanceMeters(a, b) {
+  const dLat = (b.lat - a.lat) * ELEVATION_RAD;
+  const dLon = (b.lon - a.lon) * ELEVATION_RAD;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * ELEVATION_RAD) * Math.cos(b.lat * ELEVATION_RAD) * Math.sin(dLon / 2) ** 2;
+  return 12742017.6 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function medianFive(heights) {
+  if (heights.length < 5) return heights;
+  const out = heights.slice();
+  for (let i = 2; i < heights.length - 2; i++) {
+    const window = heights.slice(i-2, i+3).sort((a,b)=>a-b);
+    out[i] = window[2];
+  }
+  return out;
+}
+
+/** Add meaningful uphill excursions, not every noisy positive GPS fluctuation. */
+function ascentForHeights(heights, threshold = REVERSAL_METERS) {
+  if (heights.length < 2) return 0;
+  const series = medianFive(heights);
+  let base = series[0], extremum = base, direction = 0, gain = 0;
+  for (let i=1; i<series.length; i++) {
+    const height = series[i];
+    if (direction === 0) {
+      if (height >= base + threshold) { direction = 1; extremum = height; }
+      else if (height <= base - threshold) { direction = -1; extremum = height; }
+    } else if (direction === 1) {
+      if (height > extremum) extremum = height;
+      else if (height <= extremum - threshold) {
+        gain += Math.max(0, extremum - base);
+        base = extremum;
+        extremum = height;
+        direction = -1;
+      }
+    } else {
+      if (height < extremum) extremum = height;
+      else if (height >= extremum + threshold) {
+        base = extremum;
+        extremum = height;
+        direction = 1;
+      }
+    }
+  }
+  if (direction === 1) gain += Math.max(0, extremum - base);
+  return gain;
+}
+
+function computeElevationStats(segments) {
+  let min = Infinity, max = -Infinity, points = 0, totalPoints = 0;
+  let ascent = 0, pairs = 0;
+  for (const seg of segments) {
+    let contiguous = [];
+    const flush = () => {
+      if (contiguous.length >= 2) { ascent += ascentForHeights(contiguous); pairs += contiguous.length - 1; }
+      contiguous = [];
+    };
+    for (const p of seg) {
+      totalPoints++;
+      if (typeof p.ele !== 'number' || !Number.isFinite(p.ele)) { flush(); continue; }
+      points++;
+      min = Math.min(min, p.ele);
+      max = Math.max(max, p.ele);
+      contiguous.push(p.ele);
+    }
+    flush();
+  }
+  return {
+    minElevation: points ? Math.round(min) : null,
+    maxElevation: points ? Math.round(max) : null,
+    ascentMeters: pairs ? Math.round(ascent) : null,
+    elevationPointCount: points,
+    elevationTotalPointCount: totalPoints,
+  };
+}
+
+function formatDistanceElevation(route) {
+  const km = Number.isFinite(route.distanceKm) ? Number(route.distanceKm.toFixed(1)).toLocaleString('ja-JP') : '—';
+  const distance = `${km}km`;
+  const min = route.minElevation;
+  const max = route.maxElevation;
+  const ascent = route.ascentMeters;
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return `${distance}, 標高データなし`;
+  const d = Number.isFinite(ascent) ? `D+${Math.round(ascent).toLocaleString('ja-JP')}` : 'D+—';
+  return `${distance}, ${d} (${Math.round(min)}-${Math.round(max)}) m`;
+}
+
+/** Collect altitude samples along cumulative horizontal route distance.
+ * Missing heights split the polyline; different track segments are not joined.
+ */
+function buildElevationProfile(segments, maxPoints = 1100) {
+  const paths = [];
+  let run = [];
+  let cumulative = 0;
+  let total = 0;
+  let min = Infinity, max = -Infinity;
+  const flush = () => {
+    if (run.length) paths.push(run);
+    run = [];
+  };
+  for (const segment of segments) {
+    flush();
+    let prior = null;
+    for (const p of segment) {
+      if (prior) {
+        const d = segmentDistanceMeters(prior,p);
+        if (Number.isFinite(d) && d < 25000) cumulative += d / 1000;
+      }
+      prior = p;
+      if (typeof p.ele !== 'number' || !Number.isFinite(p.ele)) { flush(); continue; }
+      min = Math.min(min,p.ele);
+      max = Math.max(max,p.ele);
+      total++;
+      run.push({ km: cumulative, ele: p.ele });
+    }
+  }
+  flush();
+  // Downsample each path while retaining local minima and maxima in each bucket.
+  // This avoids erasing short climbs in long cycling routes.
+  const reduced = paths.map(path => {
+    if (path.length <= maxPoints || maxPoints < 4) return path;
+    const chunks = Math.max(1, Math.floor(maxPoints / 2));
+    const result = [path[0]];
+    for (let b=0; b<chunks; b++) {
+      const start = Math.max(1,Math.floor(b * (path.length - 2) / chunks) + 1);
+      const end = Math.min(path.length - 1, Math.floor((b+1)*(path.length - 2) / chunks) + 1);
+      if (end <= start) continue;
+      let low = start, high = start;
+      for (let j=start+1; j<end; j++) {
+        if (path[j].ele < path[low].ele) low = j;
+        if (path[j].ele > path[high].ele) high = j;
+      }
+      const indices = [...new Set([low,high])].sort((a,b)=>a-b);
+      for (const index of indices) if (result[result.length-1] !== path[index]) result.push(path[index]);
+    }
+    if (result[result.length-1] !== path[path.length-1]) result.push(path[path.length-1]);
+    return result;
+  });
+  return { paths: reduced, minElevation: total ? min : null, maxElevation: total ? max : null, distanceKm: cumulative, sampleCount: total };
+}
+
+
+
 /**
  * Cycling Route Viewer - parsers and geometry utilities.
  * GPX parsing uses the browser's DOMParser. FIT decoding supports standard
@@ -299,7 +535,7 @@ function simplify(segment, toleranceMeters = 40) {
   return segment.filter((_, i) => keep[i]);
 }
 
-function prepareRoute({ id, name, source, segments, date, isDemo = false }) {
+function prepareRoute({ id, name, source, segments, date }) {
   const cleaned = segments.map(seg => seg.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180))
     .filter(seg => seg.length >= 2);
   if (!cleaned.length) throw new Error('有効なGPS座標が見つかりません');
@@ -310,13 +546,31 @@ function prepareRoute({ id, name, source, segments, date, isDemo = false }) {
   const lastTime = last.time || null;
   const seconds = firstTime && lastTime ? (new Date(lastTime) - new Date(firstTime)) / 1000 : null;
   return {
-    id, name, source, isDemo, date: date || firstTime || null,
+    id, name, source, date: date || firstTime || null,
     distanceKm: Math.round(lengthKm(cleaned) * 10) / 10,
     elapsedSeconds: seconds > 0 && seconds < 60 * 60 * 24 * 14 ? Math.round(seconds) : null,
     pointCount: cleaned.reduce((sum, seg) => sum + seg.length, 0),
     segments: cleaned,
-    overview: cleaned.map(seg => simplify(seg, 60)),
+    overview: cleaned.map(seg => simplify(seg, 15)),
+    overviewToleranceMeters: 15, schemaVersion: 3,
+    ...computeElevationStats(cleaned),
   };
+}
+
+/** Upgrade persisted v0.2 records without losing their original track points. */
+function upgradeRoute(route) {
+  if (!route || !Array.isArray(route.segments)) throw new Error('保存された経路のGPS点列が不正です');
+  if (route.schemaVersion === 3 && route.overviewToleranceMeters === 15 &&
+      Array.isArray(route.overview) && Object.hasOwn(route, 'elevationPointCount')) return route;
+  const upgraded = {
+    ...route,
+    overview: route.segments.map(seg => simplify(seg, 15)),
+    overviewToleranceMeters: 15,
+    schemaVersion: 3,
+    ...computeElevationStats(route.segments),
+  };
+  delete upgraded.isDemo;
+  return upgraded;
 }
 
 function gpxChildren(el, localName) {
@@ -495,6 +749,41 @@ function parseFit(arrayBuffer, filename = 'activity.fit') {
 }
 
 
+/** Official GSI tiled maps; no proxy, no tile prefetching. */
+const GSI = 'https://cyberjapandata.gsi.go.jp/xyz/';
+const GSI_ATTR = '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院</a>';
+const SEA_ATTR = '海域部は海上保安庁海洋情報部の資料を使用して作成';
+const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>';
+
+const MAP_STYLE_IDS = ['osm','gsi-topo','gsi-relief','gsi-shade'];
+
+function createMapStyle(leaflet, id) {
+  const options = { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin' };
+  const tile = (name, maxNativeZoom, extra = {}) => leaflet.tileLayer(`${GSI}${name}/{z}/{x}/{y}.png`, {
+    ...options, maxNativeZoom, attribution: GSI_ATTR, ...extra,
+  });
+  switch(id) {
+    case 'gsi-topo':
+      return tile('std',18);
+    case 'gsi-relief':
+      return leaflet.layerGroup([
+        tile('relief',15,{minNativeZoom:5,attribution: `${GSI_ATTR} / ${SEA_ATTR}`}),
+        tile('pale',18,{opacity:0.30}),
+      ]);
+    case 'gsi-shade':
+      return leaflet.layerGroup([
+        tile('hillshademap',16,{minNativeZoom:2}),
+        tile('pale',18,{opacity:0.35}),
+      ]);
+    case 'osm':
+    default:
+      return leaflet.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        ...options, attribution: OSM_ATTR,
+      });
+  }
+}
+
+
 /** Official Maps URL scheme: no Google Maps JavaScript API key required. */
 function validateCoordinates(lat, lng) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
@@ -522,6 +811,8 @@ function googleMapsPointUrl(lat, lng) {
 
 
 
+
+
 const $ = id => document.getElementById(id);
 const refs = {
   list: $('ride-list'), search: $('search'), year: $('year-filter'), format: $('format-filter'),
@@ -530,10 +821,27 @@ const refs = {
   intro: $('intro'), map: $('map'), showAll: $('show-all'), hideAll: $('hide-all'), export: $('export'),
 };
 const COLORS = ['#e86146', '#3d9e95', '#6379d1', '#af76b6', '#d19b3f', '#4691c8', '#7eaa67', '#bc6588'];
-const state = { routes: [], selected: new Set(), active: null, query: '', year: '', format: '' };
+const SETTINGS_KEY = 'route-atlas-v0.3-settings';
+function readSettings() {
+  let raw = {};
+  try { raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch { /* storage may be blocked */ }
+  return {
+    mapStyle: MAP_STYLE_IDS.includes(raw.mapStyle) ? raw.mapStyle : 'osm',
+    precision: raw.precision === 'full' ? 'full' : 'standard',
+    lineWidth: Number.isFinite(Number(raw.lineWidth)) ? Math.max(3,Math.min(10,Math.round(Number(raw.lineWidth)*5)/5)) : 6.4,
+  };
+}
+const state = { routes: [], selected: new Set(), active: null, query: '', year: '', format: '', settings: readSettings() };
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY,JSON.stringify(state.settings)); }
+  catch { /* localStorage may be disabled; in-memory settings still work */ }
+}
+
 let map;
 let layerGroup;
+let baseLayer = null;
 let renderer;
+let currentProfile = null;
 let streetViewMarker = null;
 let database = null;
 
@@ -563,29 +871,38 @@ function filteredRoutes() {
     return true;
   });
 }
+function updateGsiCredit() {
+  const credit=$('gsi-zoom-credit');
+  if (!credit) return;
+  const z=map && typeof map.getZoom==='function' ? map.getZoom() : null;
+  credit.hidden=state.settings.mapStyle==='osm' || z==null || z<5 || z>8;
+}
+function switchBaseMap() {
+  if (!map || window.location.protocol === 'file:') return;
+  if (baseLayer) map.removeLayer(baseLayer);
+  baseLayer = createMapStyle(L, state.settings.mapStyle);
+  // Insert behind GPS polylines and the Street View marker.
+  baseLayer.addTo(map);
+  const warning = $('map-coverage');
+  warning.hidden = state.settings.mapStyle === 'osm';
+  updateGsiCredit();
+}
 function ensureMap() {
   if (!window.L) {
     refs.map.innerHTML = '<div class="map-failure">地図ライブラリを読み込めませんでした。ネットワーク接続を確認して再読込してください。</div>';
     status('Leafletを読み込めませんでした。ネット接続をご確認ください。', 'error');
     return false;
   }
-  map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([32.80, 129.92], 10);
-  L.control.zoom({ position: 'topright' }).addTo(map);
-  // The OSMF tile policy requires an HTTP Referer for web pages. Browsers do not
-  // send one from file://, so do not make non-compliant requests from local HTML.
+  map = L.map('map', {preferCanvas:true, zoomControl:false}).setView([32.80,129.92],10);
+  L.control.zoom({position:'topright'}).addTo(map);
   if (window.location.protocol === 'file:') {
     const warning = $('protocol-warning');
     if (warning) warning.hidden = false;
-  } else {
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
-      referrerPolicy: 'strict-origin-when-cross-origin',
-      maxZoom: 19,
-    }).addTo(map);
-  }
-  renderer = L.canvas({ padding: 0.2 });
+  } else switchBaseMap();
+  renderer = L.canvas({padding:0.2});
   layerGroup = L.layerGroup().addTo(map);
   map.on('click', event => showStreetViewAt(event.latlng));
+  map.on('zoomend',updateGsiCredit);
   return true;
 }
 
@@ -645,28 +962,33 @@ function clearStreetView() {
 function updateMap() {
   if (!map) return;
   layerGroup.clearLayers();
+  const weight = state.settings.lineWidth;
   for (const route of state.routes) {
     if (!state.selected.has(route.id)) continue;
     const color = colorFor(route);
-    for (const segment of (route.id === state.active ? route.segments : route.overview)) {
+    const isActive = route.id === state.active;
+    // The overview always retains 15m accuracy; full mode uses the GPS originals.
+    const segments = state.settings.precision === 'full' || isActive ? route.segments : route.overview;
+    for (const segment of segments) {
       if (segment.length < 2) continue;
-      const line = L.polyline(segment.map(p => [p.lat, p.lon]), {
-        renderer, color, weight: route.id === state.active ? 5 : 3.2,
-        opacity: route.id === state.active ? 0.96 : 0.75,
-        lineCap:'round', lineJoin:'round', interactive:true, bubblingMouseEvents:false,
+      const line = L.polyline(segment.map(p => [p.lat,p.lon]), {
+        renderer, color, weight: isActive ? weight * (10 / 6.4) : weight,
+        opacity: isActive ? 0.97 : 0.79,
+        lineCap:'round', lineJoin:'round',interactive:true,bubblingMouseEvents:false,
       }).addTo(layerGroup);
+      line._routeAtlasActive=isActive;
       line.on('click', event => { focusRoute(route.id); showStreetViewAt(event.latlng); });
-      line.bindTooltip(route.name, { sticky: true, direction: 'top' });
+      line.bindTooltip(route.name,{sticky:true,direction:'top'});
     }
   }
 }
 function zoomTo(routes) {
   if (!map || !routes.length) return;
-  const coords = [];
+  const bounds = L.latLngBounds([]);
   for (const route of routes) for (const segment of route.overview) {
-    for (const p of segment) coords.push([p.lat, p.lon]);
+    for (const p of segment) bounds.extend([p.lat,p.lon]);
   }
-  if (coords.length > 1) map.fitBounds(L.latLngBounds(coords), { padding: [35, 35], maxZoom: 14 });
+  if (bounds.isValid()) map.fitBounds(bounds,{padding:[35,35],maxZoom:14});
 }
 function focusRoute(id) {
   const route = state.routes.find(r => r.id === id);
@@ -690,59 +1012,145 @@ function renderList() {
   refs.intro.hidden = state.routes.length > 0;
   if (!routes.length && state.routes.length) {
     const none = document.createElement('div');
-    none.className = 'no-results'; none.textContent = '条件に合う経路がありません。';
-    refs.list.appendChild(none);
+    none.className='no-results'; none.textContent='条件に合う経路がありません。';
+    refs.list.append(none);
     return;
   }
   const fragment = document.createDocumentFragment();
-  routes.forEach(route => {
+  for (const route of routes) {
     const entry = document.createElement('div');
     entry.className = `ride ${route.id === state.active ? 'active' : ''}`;
     const box = document.createElement('input');
-    box.type = 'checkbox'; box.className = 'ride-checkbox';
-    box.checked = state.selected.has(route.id);
-    box.setAttribute('aria-label', `${route.name} を表示`);
-    box.addEventListener('change', () => {
+    box.type='checkbox'; box.className='ride-checkbox';
+    box.checked=state.selected.has(route.id);
+    box.setAttribute('aria-label',`${route.name} を表示`);
+    box.addEventListener('change',()=>{
       if (box.checked) state.selected.add(route.id);
       else state.selected.delete(route.id);
-      if (!box.checked && state.active === route.id) state.active = null;
+      if (!box.checked && state.active === route.id) state.active=null;
       render();
     });
-    const bar = document.createElement('span'); bar.className = 'ride-color';
-    bar.style.backgroundColor = colorFor(route);
-    const main = document.createElement('button');
-    main.type = 'button'; main.className = 'ride-main';
-    main.title = '地図上のこの経路に移動';
-    const name = document.createElement('strong'); name.textContent = route.name;
-    const meta = document.createElement('small');
-    meta.textContent = `${formatDate(route.date)}   ·   ${route.distanceKm.toFixed(1)} km   ·   ${route.source}`;
-    main.append(name, meta);
-    main.addEventListener('click', () => focusRoute(route.id));
-    entry.append(box, bar, main);
+    const bar=document.createElement('span'); bar.className='ride-color';
+    bar.style.backgroundColor=colorFor(route);
+    const main=document.createElement('button'); main.type='button'; main.className='ride-main';
+    main.title='地図上のこの経路に移動';
+    const name=document.createElement('strong'); name.textContent=route.name;
+    const date=document.createElement('small'); date.className='ride-date';
+    date.textContent=`${formatDate(route.date)}  ·  ${route.source}`;
+    const meta=document.createElement('small'); meta.className='ride-metrics';
+    meta.textContent=formatDistanceElevation(route);
+    main.append(name,date,meta);
+    main.addEventListener('click',()=>focusRoute(route.id));
+    const del=document.createElement('button');del.type='button';del.className='ride-delete';
+    del.title=`${route.name} を削除`;del.setAttribute('aria-label',`${route.name} を削除`);
+    del.textContent='×';
+    del.addEventListener('click',()=>deleteRoute(route));
+    entry.append(box,bar,main,del);
     fragment.append(entry);
-  });
-  refs.list.appendChild(fragment);
+  }
+  refs.list.append(fragment);
 }
 function renderDetail() {
-  const route = state.routes.find(r => r.id === state.active);
+  const route = state.routes.find(r=>r.id === state.active) ||
+    (state.selected.size===1 ? state.routes.find(r=>state.selected.has(r.id)) : null);
   if (!route) {
-    refs.detail.innerHTML = '<span class="detail-empty">一覧の経路名をクリックすると詳細を表示できます。</span>';
+    refs.detail.innerHTML='<span class="detail-empty">一覧の経路名をクリックすると詳細を表示できます。標高プロファイルは1経路だけを表示すると現れます。</span>';
     return;
   }
   refs.detail.replaceChildren();
-  const title = document.createElement('strong'); title.textContent = route.name;
-  const specs = document.createElement('div'); specs.className = 'detail-grid';
-  for (const [label, value] of [
-    ['走行日', formatDate(route.date)], ['距離', `${route.distanceKm.toFixed(1)} km`],
-    ['経過時間', formatDuration(route.elapsedSeconds)], ['GPS点数', route.pointCount.toLocaleString('ja-JP')],
-    ['形式', route.source], ['種類', route.isDemo ? '架空のサンプル' : 'ローカルファイル'],
-  ]) {
-    const cell = document.createElement('div');
-    const k = document.createElement('span'); k.textContent = label;
-    const v = document.createElement('b'); v.textContent = value;
-    cell.append(k,v); specs.append(cell);
+  const heading=document.createElement('div');heading.className='detail-heading';
+  const title=document.createElement('strong');title.textContent=route.name;
+  const isolate=document.createElement('button');isolate.type='button';isolate.className='detail-isolate';
+  isolate.textContent='この経路のみ';isolate.title='この経路だけを表示して標高プロファイルを確認';
+  isolate.addEventListener('click',()=>{
+    state.selected=new Set([route.id]);state.active=route.id;
+    render();zoomTo([route]);
+  });
+  heading.append(title,isolate);
+  const summary=document.createElement('p');summary.className='detail-summary';
+  summary.textContent=formatDistanceElevation(route);
+  const specs=document.createElement('div');specs.className='detail-grid';
+  const cells=[
+    ['走行日',formatDate(route.date)],
+    ['経過時間',formatDuration(route.elapsedSeconds)],
+    ['GPS点数',route.pointCount.toLocaleString('ja-JP')],
+  ];
+  if (Number.isFinite(route.minElevation) && Number.isFinite(route.maxElevation)) {
+    cells.push(['最低標高',`${route.minElevation} m`],['最高標高',`${route.maxElevation} m`],
+      ['累積上昇',Number.isFinite(route.ascentMeters) ? `${route.ascentMeters.toLocaleString('ja-JP')} m` : '算出不可']);
   }
-  refs.detail.append(title, specs);
+  for (const [label,value] of cells) {
+    const cell=document.createElement('div');
+    const k=document.createElement('span');k.textContent=label;
+    const v=document.createElement('b');v.textContent=value;
+    cell.append(k,v);specs.append(cell);
+  }
+  refs.detail.append(heading,summary,specs);
+  if (route.elevationPointCount && route.elevationPointCount < route.pointCount) {
+    const note=document.createElement('small'); note.className='detail-caution';
+    note.textContent='一部のGPS点で標高が欠損しています。D+は標高のある連続区間のみから算出。';
+    refs.detail.append(note);
+  }
+}
+function renderElevation() {
+  const panel=$('elevation-panel'),svg=$('elevation-chart');
+  if (state.selected.size !== 1) {panel.hidden=true;return;}
+  const route=state.routes.find(r=>state.selected.has(r.id));
+  if (!route || !route.elevationPointCount || !Number.isFinite(route.minElevation)) {
+    panel.hidden=true;return;
+  }
+  if (!currentProfile || currentProfile.id !== route.id) {
+    currentProfile={id:route.id,profile:buildElevationProfile(route.segments)};
+  }
+  const data=currentProfile.profile;
+  if (data.sampleCount < 2) {panel.hidden=true;return;}
+  panel.hidden=false;
+  $('elevation-route-name').textContent=route.name;
+  const W=680,H=175,margin={left:52,right:16,top:15,bottom:29};
+  const w=W-margin.left-margin.right,h=H-margin.top-margin.bottom;
+  const maxDistance=Math.max(0.01,data.distanceKm);
+  const low=data.minElevation,high=data.maxElevation;
+  const pad=Math.max(4,(high-low)*0.08);
+  const lo=low-pad,hi=high+pad;
+  const fx=x=>margin.left+(x/maxDistance)*w;
+  const fy=y=>margin.top+(hi-y)/(hi-lo)*h;
+  const color=colorFor(route);
+  const ticks=[];
+  for (let i=0;i<=4;i++) {
+    const y=margin.top+i*h/4;
+    const value=hi-i*(hi-lo)/4;
+    ticks.push(`<line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${W-margin.right}" y2="${y.toFixed(2)}" stroke="#e0eae5" stroke-width="1"/>`);
+    ticks.push(`<text x="${margin.left-8}" y="${(y+4).toFixed(2)}" text-anchor="end" fill="#6d847a" font-size="11">${Math.round(value)}</text>`);
+  }
+  for (let i=0;i<=4;i++) {
+    const x=margin.left+i*w/4;
+    ticks.push(`<text x="${x.toFixed(2)}" y="${H-7}" text-anchor="middle" fill="#6d847a" font-size="11">${(maxDistance*i/4).toFixed(1)}</text>`);
+  }
+  const paths=data.paths.filter(path=>path.length>=2).map(path=>{
+    const d=path.map((p,i)=>`${i?'L':'M'}${fx(p.km).toFixed(2)},${fy(p.ele).toFixed(2)}`).join(' ');
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.3" stroke-linejoin="round" stroke-linecap="round"/>`;
+  });
+  svg.innerHTML=`<rect x="${margin.left}" y="${margin.top}" width="${w}" height="${h}" fill="#f8fbf9"/>${ticks.join('')}<text x="12" y="12" fill="#54786a" font-size="11">標高 m</text>${paths.join('')}<line id="profile-crosshair" x1="0" y1="${margin.top}" x2="0" y2="${H-margin.bottom}" stroke="#304b43" stroke-width="1" stroke-dasharray="3 3" visibility="hidden"/><circle id="profile-marker" cx="0" cy="0" r="4" fill="${color}" stroke="#ffffff" stroke-width="2" visibility="hidden"/>`;
+  $('elevation-hover').textContent='GPSログの標高値から作成（カーソルで詳細）';
+  svg._profileData={data,fx,fy,margin,w,h};
+}
+function handleElevationHover(event) {
+  const svg=$('elevation-chart'), meta=svg._profileData;
+  if (!meta) return;
+  const rect=svg.getBoundingClientRect();
+  const localX=(event.clientX-rect.left)/rect.width*680;
+  const wantedKm=(Math.min(meta.margin.left+meta.w,Math.max(meta.margin.left,localX))-meta.margin.left)/meta.w*meta.data.distanceKm;
+  let closest=null,dist=Infinity;
+  for (const path of meta.data.paths) for (const p of path) {
+    const d=Math.abs(p.km-wantedKm);
+    if (d<dist) {dist=d;closest=p;}
+  }
+  if (!closest) return;
+  const x=meta.fx(closest.km),y=meta.fy(closest.ele);
+  const cross=$('profile-crosshair'),marker=$('profile-marker');
+  cross.setAttribute('x1',x);cross.setAttribute('x2',x);cross.setAttribute('visibility','visible');
+  marker.setAttribute('cx',x);marker.setAttribute('cy',y);marker.setAttribute('visibility','visible');
+  $('elevation-hover').textContent=`${closest.km.toFixed(2)} km / 標高 ${Math.round(closest.ele)} m`;
 }
 function renderStats() {
   refs.total.textContent = state.routes.length.toLocaleString('ja-JP');
@@ -751,9 +1159,7 @@ function renderStats() {
   refs.km.textContent = km.toLocaleString('ja-JP',{maximumFractionDigits:1});
 }
 function render() {
-  renderStats(); renderList(); renderDetail(); updateMap();
-  const mark = document.querySelector('.demo-watermark');
-  if (mark) mark.hidden = !state.routes.some(r => r.isDemo && state.selected.has(r.id));
+  renderStats(); renderList(); renderDetail(); renderElevation(); updateMap();
 }
 
 function setupListeners() {
@@ -771,8 +1177,32 @@ function setupListeners() {
   refs.hideAll.addEventListener('click', () => { for (const r of filteredRoutes()) state.selected.delete(r.id); state.active = null; render(); });
   $('zoom-all').addEventListener('click', () => zoomTo(state.routes.filter(r => state.selected.has(r.id))));
   $('clear-streetview').addEventListener('click', clearStreetView);
-  $('demo-button').addEventListener('click', loadDemo);
   $('clear-button').addEventListener('click', clearRoutes);
+  $('map-style').value=state.settings.mapStyle;
+  $('route-precision').value=state.settings.precision;
+  $('route-width').value=String(state.settings.lineWidth);
+  $('route-width-value').textContent=`${state.settings.lineWidth.toFixed(1)}px`;
+  $('map-style').addEventListener('change',e=>{
+    state.settings.mapStyle=e.target.value;
+    saveSettings();switchBaseMap();
+  });
+  $('route-precision').addEventListener('change',e=>{
+    state.settings.precision=e.target.value;saveSettings();updateMap();
+  });
+  $('route-width').addEventListener('input',e=>{
+    state.settings.lineWidth=Number(e.target.value);
+    $('route-width-value').textContent=`${state.settings.lineWidth.toFixed(1)}px`;
+    saveSettings();
+    if (layerGroup) for (const line of layerGroup.getLayers()) {
+      line.setStyle({weight:line._routeAtlasActive ? state.settings.lineWidth*(10/6.4) : state.settings.lineWidth});
+    }
+  });
+  $('elevation-chart').addEventListener('mousemove',handleElevationHover);
+  $('elevation-chart').addEventListener('mouseleave',()=>{
+    $('profile-crosshair')?.setAttribute('visibility','hidden');
+    $('profile-marker')?.setAttribute('visibility','hidden');
+    $('elevation-hover').textContent='GPSログの標高値から作成（カーソルで詳細）';
+  });
   refs.export.addEventListener('click', exportSelected);
   $('help-button').addEventListener('click', () => $('help-dialog').showModal());
   $('close-help').addEventListener('click', () => $('help-dialog').close());
@@ -781,49 +1211,6 @@ function setupListeners() {
   for (const evt of ['dragleave','drop']) drop.addEventListener(evt, e=>{ e.preventDefault(); drop.classList.remove('dragging'); });
   drop.addEventListener('drop', e => importFiles(e.dataTransfer.files));
   window.addEventListener('resize', () => map?.invalidateSize());
-}
-
-function sampleSegment(waypoints, index) {
-  const points = [];
-  for (let leg = 0; leg < waypoints.length - 1; leg++) {
-    const [lat1, lon1] = waypoints[leg], [lat2, lon2] = waypoints[leg + 1];
-    const steps = 21;
-    for (let i = 0; i < steps; i++) {
-      const t = i / steps;
-      const wiggle = Math.sin(t * Math.PI) * Math.sin(t * 3 * Math.PI + index * 1.9) * 0.0013;
-      const date = new Date(Date.UTC(2026, 8, 5 + index, 0, 0, 0) + (leg * steps + i) * 60000);
-      points.push({lat:lat1+(lat2-lat1)*t+wiggle,lon:lon1+(lon2-lon1)*t+wiggle,time:date.toISOString()});
-    }
-  }
-  const [lastLat, lastLon] = waypoints[waypoints.length - 1];
-  points.push({lat:lastLat,lon:lastLon});
-  return points;
-}
-function demoRoutes() {
-  // Synthetic routes for UI demonstration only, not real road data.
-  const examples = [
-    ['デモ：長崎市内ループ',[[32.744,129.874],[32.765,129.894],[32.790,129.871],[32.777,129.839],[32.749,129.849],[32.744,129.874]]],
-    ['デモ：大村湾方面',[[32.744,129.874],[32.833,129.912],[32.911,129.952],[32.941,129.952],[32.911,129.952],[32.833,129.912],[32.744,129.874]]],
-    ['デモ：諫早方面',[[32.756,129.878],[32.790,129.959],[32.840,130.014],[32.844,130.054],[32.810,130.005],[32.756,129.878]]],
-    ['デモ：西彼杵半島',[[32.753,129.851],[32.793,129.797],[32.858,129.747],[32.925,129.723],[32.889,129.749],[32.813,129.802],[32.753,129.851]]],
-    ['デモ：野母崎方面',[[32.744,129.874],[32.697,129.864],[32.641,129.829],[32.591,129.795],[32.622,129.805],[32.697,129.864],[32.744,129.874]]],
-    ['デモ：島原半島',[[32.843,130.048],[32.771,130.119],[32.743,130.216],[32.785,130.333],[32.870,130.311],[32.887,130.185],[32.843,130.048]]],
-    ['デモ：佐世保方面',[[32.912,129.963],[33.005,129.924],[33.105,129.797],[33.159,129.721],[33.125,129.774],[33.005,129.924],[32.912,129.963]]],
-  ];
-  return examples.map(([name, points], index) => prepareRoute({
-    id:`demo-${index}`, name, source:'DEMO', segments:[sampleSegment(points,index)], isDemo:true,
-    date:new Date(Date.UTC(2026,8,5+index)).toISOString(),
-  }));
-}
-function loadDemo() {
-  const exists = new Set(state.routes.map(r => r.id));
-  const examples = demoRoutes().filter(r=>!exists.has(r.id));
-  state.routes.push(...examples);
-  for (const r of examples) state.selected.add(r.id);
-  if (examples.length) state.active = examples[0].id;
-  updateYearOptions(); render();
-  zoomTo(state.routes.filter(r => state.selected.has(r.id)));
-  status(examples.length ? `${examples.length}件の架空デモ経路を追加しました（保存しません）。` : 'デモ経路は追加済みです。');
 }
 
 async function openDatabase() {
@@ -876,10 +1263,6 @@ async function importFiles(fileList) {
   }
   let saveError = null;
   if (pending.length) {
-    // Remove synthetic routes on first real import, avoiding accidental demo mixing.
-    const old = state.routes.filter(r=>r.isDemo);
-    for (const r of old) state.selected.delete(r.id);
-    state.routes = state.routes.filter(r=>!r.isDemo);
     state.routes.push(...pending);
     state.routes.sort((a,b)=>new Date(b.date || 0)-new Date(a.date || 0));
     for (const r of pending) state.selected.add(r.id);
@@ -894,13 +1277,30 @@ async function importFiles(fileList) {
   status(`${message}${saveError ? ' 保存失敗: ' + saveError : ''}${errors.length ? ' 例: ' + errors.slice(0,2).join(' / ') : ''}`, (errors.length || saveError) ? 'warning' : 'success');
 }
 
+async function deleteRoute(route) {
+  if (!window.confirm(`「${route.name}」を削除しますか？\nこのブラウザ内の保存記録も削除します。元のFIT/GPXファイルは変更しません。`)) return;
+  if (database) {
+    try {
+      const tx=database.transaction('routes','readwrite');
+      tx.objectStore('routes').delete(route.id);
+      await transactionPromise(tx);
+    } catch(e) {status(`経路を削除できませんでした: ${e.message}`,'error');return;}
+  }
+  state.routes=state.routes.filter(r=>r.id!==route.id);
+  state.selected.delete(route.id);
+  if (state.active===route.id) state.active=null;
+  if (currentProfile?.id===route.id) currentProfile=null;
+  updateYearOptions();render();
+  status(`「${route.name}」を削除しました。元のFIT/GPXファイルは残っています。`,'success');
+}
+
 async function clearRoutes() {
   if (!window.confirm('このブラウザに保存したGPSログと現在の一覧を全て削除しますか？\n元のFIT/GPXファイルは削除されません。')) return;
   if (database) {
     try { const tx=database.transaction('routes','readwrite'); tx.objectStore('routes').clear(); await transactionPromise(tx); }
     catch(e) { status(`保存データを削除できませんでした: ${e.message}`,'error'); return; }
   }
-  state.routes=[]; state.selected.clear(); state.active=null;
+  state.routes=[]; state.selected.clear(); state.active=null; currentProfile=null;
   updateYearOptions(); render();
   status('保存された経路を削除しました。元のファイルは変更していません。');
 }
@@ -910,7 +1310,7 @@ function exportSelected() {
   if (!selected.length) { status('エクスポートする経路を選択してください。','warning'); return; }
   const geojson = {
     type:'FeatureCollection',
-    features:selected.map(r=>({type:'Feature', properties:{name:r.name,date:r.date,format:r.source,distance_km:r.distanceKm},
+    features:selected.map(r=>({type:'Feature', properties:{name:r.name,date:r.date,format:r.source,distance_km:r.distanceKm,ascent_m:r.ascentMeters,min_elevation_m:r.minElevation,max_elevation_m:r.maxElevation},
       geometry:{type:'MultiLineString',coordinates:r.segments.map(seg=>seg.map(p=>[p.lon,p.lat,...(Number.isFinite(p.ele)?[p.ele]:[])]))}})),
   };
   const url=URL.createObjectURL(new Blob([JSON.stringify(geojson)],{type:'application/geo+json'}));
@@ -920,15 +1320,44 @@ function exportSelected() {
 }
 
 async function init() {
-  ensureMap(); setupListeners();
-  try { database = await openDatabase(); state.routes = await loadSavedRoutes(); }
-  catch(e) { status('ブラウザ保存を利用できません。経路はこのページを閉じると消える場合があります。','warning'); }
+  ensureMap();setupListeners();
+  try {
+    database=await openDatabase();
+    const saved=await loadSavedRoutes();
+    const migrated=[];
+    for (let i=0;i<saved.length;i++) {
+      // Older installations could contain synthetic demo entries: do not load them.
+      if (saved[i].isDemo || String(saved[i].id).startsWith('demo-')) continue;
+      try {
+        const updated=upgradeRoute(saved[i]);
+        state.routes.push(updated);
+        if (updated!==saved[i]) migrated.push(updated);
+      } catch(e) {console.warn('Skipping unreadable saved route:',e);}
+      // Avoid freezing the map while migrating hundreds of old tracks.
+      if (i%10===0) await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    if (migrated.length) {
+      try {
+        for (let i=0;i<migrated.length;i+=15) {
+          await saveRoutes(migrated.slice(i,i+15));
+          await new Promise(resolve=>setTimeout(resolve,0));
+        }
+      } catch(e) {
+        status(`旧記録の表示用データを再計算しましたが、保存に失敗しました: ${e.message}`,'warning');
+      }
+    }
+  } catch(e) {
+    status('ブラウザ保存を利用できません。経路はこのページを閉じると消える場合があります。','warning');
+  }
   if (state.routes.length) {
-    state.routes.sort((a,b)=>new Date(b.date || 0)-new Date(a.date || 0));
-    state.selected = new Set(state.routes.map(r=>r.id));
-    updateYearOptions(); render(); zoomTo(state.routes);
+    state.routes.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+    state.selected=new Set(state.routes.map(r=>r.id));
+    updateYearOptions();render();zoomTo(state.routes);
     status(`${state.routes.length}件の保存済みログを読み込みました。`,'success');
-  } else { loadDemo(); }
+  } else {
+    updateYearOptions();render();
+    if (!['warning','error'].includes(refs.message.dataset.kind)) status('経路はまだ登録されていません。FIT / GPXを追加してください。');
+  }
 }
 init();
 

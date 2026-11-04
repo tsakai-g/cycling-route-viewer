@@ -1,167 +1,125 @@
-# Route Atlas — Cycling GPS Viewer
+# Route Atlas v0.3 — FIT / GPX Cycling Route Viewer
 
-FIT / GPX のサイクリング記録を、地図上で一覧・検索・重ね合わせ表示し、クリックした地点のGoogleストリートビューを開ける **local-first** の静的 Web アプリです。独自サーバー不要で GitHub Pages にそのまま配置できます。
+FIT/GPXの走行履歴を一括で読み込み、数百件の経路を地図上で一覧・比較できる **ブラウザ内完結型（local-first）の静的Webアプリ**です。Google My MapsやGoogle Maps APIキー、独自のバックエンドサーバーは不要です。GitHub Pagesにそのまま公開できます。
 
-[![App: Route Atlas](assets/favicon.svg)](https://tsakai-g.github.io/cycling-route-viewer/)
+**v0.3では初期表示にデモ経路はありません。** 画面に経路を追加するには、自分のFIT/GPXを読み込んでください。
 
-## デモでできること
+## すぐに使う（Windows）
 
-- 起動時に **7件の架空のサイクリング経路**を表示（実在する道路の再現ではありません）。
-- `.fit` / `.gpx` を**複数選択・フォルダ選択・ドラッグ＆ドロップ**で追加。
-- 名前検索・走行年・ファイル形式で絞り込み、チェックボックスで表示経路を切り替え。
-- 地図で経路をクリックして選択、または一覧から選択してその経路をズーム表示。
-- **ストリートビュー連携**：地図の任意の地点や走行経路をクリック → 座標付きマーカーとポップアップ → 「Googleストリートビューで開く」を選ぶと別タブで表示。通常のGoogleマップへのリンクも付属。
-- 距離・走行日・経過時間・元の GPS 点数を表示。
-- 表示中の経路を **GeoJSON** に出力。
-- 読み込んだ記録はブラウザの **IndexedDB** に保存し、再訪時に復元。
+1. `cycling-route-viewer-v0.3.zip` を展開します。
+2. 展開したフォルダ内の **`run-local.cmd` をダブルクリック**します。Python 3が必要です。
+3. Chrome / Edgeで **<http://127.0.0.1:8000/>** が開きます。開かない場合はURLを手入力してください。
+4. **「FIT / GPXを追加」** または **「フォルダ」** から記録を読み込みます。
+5. 終了するときは起動したローカルHTTPサーバーのコマンドプロンプトを閉じてください。
 
-## ストリートビューを使う
+コマンドで起動する場合：
 
-1. 地図上の任意の場所、または表示されている走行経路をクリックします。
-2. クリック地点にオレンジ色のマーカーが現れ、緯度・経度がポップアップに表示されます。
-3. **Googleストリートビューで開く ↗** を押すと新しいタブでGoogleストリートビューを開きます。
-4. 撮影データがない場合はその地点のストリートビューが利用できません。補助リンク **Googleマップで地点を見る ↗** を利用できます。
-5. **地点を解除 ×** でマーカーを消せます。地図で別の場所をクリックするとマーカーが移動します。
-
-リンクの生成にはGoogle公式の Maps URL 仕様 `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=緯度,経度` を用います。**Google Maps APIキーは不要**です。指定座標の最も近いパノラマを開くため、厳密に同じ地点で撮影された画像とは限りません。
-
-## GitHub Pages への公開（最も簡単）
-
-公開手順のみの資料：**[GITHUB_PAGES.md](GITHUB_PAGES.md)**
-
-1. GitHub で公開用リポジトリ `cycling-route-viewer` を作成します（この例では空のリポジトリを選択）。
-2. このフォルダのファイル・ディレクトリをリポジトリのルートにアップロード／コミットします。**ZIP ファイルそのものをアップロードするのではなく、展開後の中身**を登録します。
-3. GitHub のリポジトリで **Settings → Pages → Build and deployment** に進みます。
-4. **Source: Deploy from a branch**、**Branch: main**、**Folder: /(root)** を指定し **Save** します。
-5. 公開ページは通常 `https://<username>.github.io/cycling-route-viewer/` となります。
-
-Git でアップロードする場合（空のリポジトリを作成済み）：
-
-```bash
-cd cycling-route-viewer
-git init
-git add .
-git commit -m "Initial Route Atlas demo"
-git branch -M main
-git remote add origin https://github.com/USERNAME/cycling-route-viewer.git
-git push -u origin main
-```
-
-> `USERNAME` はご自身の GitHub ユーザー名に置き換えてください。公開前に `git status` を確認してください。 `.gitignore` により一般的な `.fit` / `.gpx` / `.geojson` ファイルは誤ってコミットされにくいようにしていますが、完全な機密情報検査の代わりにはなりません。
-
-## ローカル起動（重要：OpenStreetMapの403対策）
-
-**Windowsなら `run-local.cmd` をダブルクリックして起動してください。** Python 3がインストールされていれば、自動でローカルHTTPサーバーが起動し、`http://127.0.0.1:8000/` をブラウザで開きます。アプリの使用中は起動したコマンドプロンプト画面を閉じないでください。閉じるとサーバーが停止します。初回起動でPythonが見つからない場合は下記の手動起動を参照してください。
-
-**注意：`local-preview.html` を直接ダブルクリックする方式は現在のOpenStreetMapタイル配信ポリシーに対応できません。** ブラウザで `file://` のHTMLを開くとHTTP `Referer` ヘッダーを送れず、地図の代わりに「403 Access blocked」が出ます。そのため、今回のバージョンでは `local-preview.html` からの地図タイル取得を停止し、画面内に起動案内を出します。GPSログやアプリの不具合ではありません。
-
-手動で起動する場合はZIPを展開したフォルダでPowerShellまたはターミナルを開き、次を実行してください。
-
-```bash
-# WindowsでPython Launcherがある場合
+```powershell
+cd <展開先フォルダ>
 py -m http.server 8000 --bind 127.0.0.1
-
-# または、その他のOS・環境
-python -m http.server 8000 --bind 127.0.0.1
 ```
 
-その後、Chrome/Edgeで **http://127.0.0.1:8000/** を開いてください。`127.0.0.1` は利用中のPC自身を示し、外部にWebアプリを公開するものではありません。ブラウザが標準設定なら、地図リクエストに必要なHTTP `Referer` が送信されます。**背景地図の読み込みにはインターネット接続が必要です。**
+Pythonコマンドが`py`ではないPCでは `python -m http.server 8000 --bind 127.0.0.1` を使ってください。
 
-地図タイルがまだ拒否される場合は、ブラウザのトラッキング防止機能や拡張機能によって `Referer` が削除されていないか確認してください。OSMのタイル利用ポリシーを回避するために、ブラウザのUser-Agentを偽装したり、大量のタイルを事前取得したりしないでください。
+**重要：`local-preview.html`や`index.html`を直接ダブルクリックして開かないでください。** `file://` で開くとOpenStreetMapのタイルが403 Access blockedになることがあります。`local-preview.html`は単独HTMLですが、`file://`では地図を読み込まず起動手順を表示します。地図を使うには必ずHTTP/HTTPSから開いてください。GitHub Pages上では通常のHTTPSアクセスになります。
 
-`index.html` はES Modulesを使用するため、直接ダブルクリックで起動するのではなく上記のHTTPサーバー経由で開いてください。GitHub Pagesに公開されたページは通常のHTTPSオリジンから表示されます。
+## v0.3の機能
 
-開発時はNode.jsを使用できます。
+| 項目 | 動作 |
+| --- | --- |
+| FIT/GPX読み込み | 複数ファイル・フォルダ・ドラッグ＆ドロップ |
+| 初期状態 | **経路0件**。架空デモ経路は含みません |
+| 表示精度 | **標準15m**のDouglas–Peucker簡略化、または**最高精度（元の全GPS点）** |
+| 線の太さ | **初期6.4px**、3〜10pxのスライダーで変更。強調中の経路は初期10px |
+| 背景地図 | OpenStreetMap、**国土地理院・地形図**、**色別標高図**、**陰影起伏図** |
+| 一覧表示 | 日付・形式、`41km, D+793 (3-420) m`形式の距離・累積上昇・最低最高標高 |
+| 経路の個別削除 | 各行の **×** で確認後、一覧とIndexedDBの両方から削除（元ファイルは削除しません） |
+| 標高プロファイル | **表示チェックが1経路だけ**で、標高データがあるとき表示。X軸は累積距離km、Y軸は標高m |
+| 検索・選択 | 名称・ファイル名検索、年・形式フィルター、表示の一括ON/OFF、選択した経路へズーム |
+| ストリートビュー | 地図/経路をクリック → マーカー → Googleストリートビューリンク（新タブ） |
+| データ保存 | 取り込んだGPS点列をブラウザのIndexedDBに保存。設定はlocalStorageに保存 |
+| 出力 | 表示中の経路をGeoJSONとして書き出し（標高付き座標を含みます） |
+
+### 操作のポイント
+
+- **一覧のチェックボックス**は地図の表示・非表示を切り替えます。
+- **経路名をクリック**するとその経路へズームして強調表示します。
+- 詳細欄の **「この経路のみ」**を押すと、その1経路だけを表示し、標高プロファイルも出ます。
+- 最高精度モードでは全表示経路を元のGPS点列で描画するため、数百件を同時に選択すると遅くなることがあります。通常は標準15mモードが推奨です。
+- **地図の4種類は右上の「背景地図」から変更**します。国土地理院の地図は日本国内向けのため、海外ルートにはOpenStreetMapを使用してください。
+- **背景地図・線幅・精度の設定は保存**され、同じブラウザ・同じURLで再度開くと復元されます。
+
+### 標高の数値と計算方法
+
+表示例：`41km, D+793 (3-420) m`
+
+- `41km`：GPS座標から計算した走行距離（小数1桁まで、末尾0は省略）。
+- `D+793`：**累積上昇高度（獲得標高、推定値）793m**。下降分は含めません。
+- `(3-420) m`：記録された最低標高3m、最高標高420m。
+- 標高を持たないファイルは `41km, 標高データなし` と表示し、ゼロ高度・D+0とは扱いません。
+
+D+はFIT/GPX内の標高値について、**5点中央値で平滑化**した後、**3mの小さな反転を無視**して意味のある上昇を積算します。標高欠損やトラックのセグメント境界をまたいで高度差を積算しません。GPS高度のノイズを抑えるための簡易的な推定です。サイクルコンピューターの獲得標高、気圧計や標高補正サービスの値とは異なることがあります。**最低・最高標高には記録された元の高度値**を使います（外れ値も残ります）。
+
+標高プロファイルでは、距離に対して記録された標高値を折れ線表示します。カーソルを移動すると近くの距離と高度を表示します。描画点数が多い場合はピークと谷を保持しながら間引きます。複数経路が表示されている場合、プロファイルは非表示です。
+
+### 以前のv0.2版から更新するとき
+
+同じURL/オリジンからv0.3を開けば、**既存のIndexedDB名 `cycling-route-viewer`、ストア `routes`**をそのまま読み込みます。v0.2の記録に保持されている元の`segments`を使って、15m簡略化用の`overview`と標高統計を**再計算**し、更新情報を保存します。元GPS点列を消しません。既存のGPSログを再インポートする必要はありません。
+
+注意：`file://`・`http://127.0.0.1:8000`・`http://localhost:8000`・GitHub Pagesはそれぞれ**保存領域が別**です。以前の記録が見えないときは、以前と同じURL（ホスト名/ポートを含む）で開いているか確認してください。ブラウザデータを削除した場合の復元はできません。**元のFIT/GPXファイルを必ず保管してください。**
+
+## 地図タイルと帰属表示
+
+- OpenStreetMap標準：<https://tile.openstreetmap.org/>（© OpenStreetMap contributors）。タイル配信ポリシーを遵守し、タイルの一括ダウンロード/オフライン配布を行いません。
+- 国土地理院・地形図：`https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png`
+- 国土地理院・色別標高図：`https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png`（元タイルはズーム5〜15。高ズームは拡大表示）
+- 国土地理院・陰影起伏図：`https://cyberjapandata.gsi.go.jp/xyz/hillshademap/{z}/{x}/{y}.png`（元タイルはズーム2〜16）
+- 色別標高図と陰影起伏図は、読みやすさのため**地理院・淡色地図**を低い不透明度で重ねています。
+
+**地図出典：国土地理院**（[地理院タイル一覧](https://maps.gsi.go.jp/development/ichiran.html)）。色別標高図の追加出典：**「海域部は海上保安庁海洋情報部の資料を使用して作成」**。標準/淡色地図の低ズーム（5〜8）に関する追加出典：GEBCO Digital Atlas（BODC / IOC / IHO, 2003）、海上保安庁許可第292502号、VMAP0（NIMA / USGS, 1997）。アプリの地図上にも、該当するズーム帯では追加出典を表示します。
+
+地理院タイルをリアルタイム読み込みで使う場合、国土地理院は原則として出典表示による利用を認めています。利用前に最新の[タイル利用案内](https://maps.gsi.go.jp/development/)と[地図の利用手続](https://www.gsi.go.jp/LAW/2930-qa.html)をご確認ください。
+
+## プライバシー、保存、安全性
+
+- **本アプリはGPSログを外部サーバーへ送信しません**。ブラウザ側のJavaScriptでFIT/GPXを解析し、IndexedDBに保存します。ただし地図・Leafletなどの外部リソース取得時は接続先にアクセス情報が送られます。
+- ストリートビューは、**Googleリンクを押したときだけ**選択地点の座標をGoogleへ渡します。
+- 個別削除・全削除はブラウザ内の保存記録も消します。元のFIT/GPXファイルには一切触れません。
+- IndexedDBの記録はブラウザやサイトデータを消した場合に失われます。またブラウザの保存容量制限を超えることがあります。**原本はバックアップしてください。**
+- GeoJSONは位置情報を含むため、他人に共有したりGitHubへアップロードする場合は注意してください。
+- リポジトリの`.gitignore`は `.fit`、`.gpx`、`.geojson` の誤登録を防ぐ補助策です。**GPSログは公開用リポジトリに入れないでください。**
+
+## テストと開発
 
 ```bash
-npm test
-npm run build:local   # 「直接開くと起動案内が出る」単独HTMLをソースから再生成
+npm test             # Node.jsの単体テスト
+npm run build:local  # ソースからlocal-preview.htmlを生成
 ```
 
-**原因の出典**：[OpenStreetMap Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/)、[OpenStreetMap Wiki: Blocked tiles](https://wiki.openstreetmap.org/wiki/Blocked)。
+ブラウザ操作の試験はChromium/PlaywrightとLeaflet代替実装を利用して実施しました。外部地図タイルが取得できないテスト環境のため、**国土地理院・OpenStreetMapの実際の地図描画やストリートビュー遷移先の表示は未検証**です。実装の単体テストは別に用意しています。
 
-## 技術構成
+FIT解析は標準的な `record` メッセージ（座標・時刻・通常高度・enhanced altitude）を処理する**軽量パーサー**です。特殊なFITファイル、開発者フィールドやすべての機器形式には対応していません。FIT CRCを厳密には検査していません。対応機種を拡げる場合は[Garmin公式FIT SDK](https://developer.garmin.com/fit/get-the-sdk/)への置換を推奨します。
 
-| 役割 | 実装 | 備考 |
-| --- | --- | --- |
-| Web | HTML、CSS、JavaScript (ES Modules) | ビルド不要 |
-| 地図 | Leaflet 1.9.4 | CDNから読込。Canvas レンダラー |
-| 背景地図 | OpenStreetMap タイル | 閲覧中の範囲のタイルを取得 |
-| GPX読込 | ブラウザの DOMParser | `trk/trkseg/trkpt`、`rte/rtept` をサポート |
-| FIT読込 | JavaScript の軽量FITデコーダー | 一般的な `record` 座標・時刻・高度に対応 |
-| 走行距離 | Haversine 距離 | GPS点列から概算 |
-| 描画高速化 | Douglas–Peucker簡略化 | 全件表示は簡略化、選択中は詳細点列 |
-| ブラウザ保存 | IndexedDB | この端末・ブラウザ・サイトのオリジン単位 |
-| 公開 | GitHub Pages | 静的ファイルのみ |
-| Street View連携 | Google Maps URLs | `map_action=pano` と `viewpoint` を使用。APIキー不要 |
-| 起動用スクリプト | `run-local.cmd` | Windowsでダブルクリックし、HTTPサーバーを起動する |
-| 単独HTML | `local-preview.html` | `file://` では地図取得を行わず、起動方法を表示 |
-
-ファイル構成：
+## 主なファイル
 
 ```text
-cycling-route-viewer/
-├── index.html           # UIと画面要素
-├── run-local.cmd        # Windowsローカル起動用（推奨）
-├── local-preview.html   # file://では起動方法を案内する単独HTML
-├── GITHUB_PAGES.md      # GitHub公開専用の手順
-├── styles.css           # デザイン／スマートフォン対応
-├── src/
-│   ├── app.js           # 地図・UI・読込・保存・エクスポート
-│   ├── parsers.js       # GPX/FIT解析・GPS距離・点列簡略化
-│   └── streetview.js    # Google Maps URL生成と座標検証
-├── assets/
-│   └── favicon.svg
-├── tests/
-│   ├── fit-parser.test.js
-│   └── streetview.test.js
-├── scripts/
-│   └── build-local-preview.mjs # 単独HTMLの再生成
-├── package.json         # テスト用（公開サイトには不要）
-├── .nojekyll            # GitHub PagesでJekyll変換を無効化
-├── .gitignore           # 生のGPSログを Git に追加しないようにする
-└── README.md
+index.html              GitHub Pagesが表示するアプリ本体
+styles.css              画面レイアウト
+src/app.js              経路・地図・UI・IndexedDB保存
+src/parsers.js          FIT/GPX解析、経路簡略化、旧データ移行
+src/elevation.js        標高集計、標高プロファイル
+src/map-styles.js       OpenStreetMap/国土地理院の4種類の地図
+src/streetview.js       GoogleストリートビューURL
+run-local.cmd           Windows向けローカル起動
+local-preview.html      HTTP用単独HTML（file://では起動案内のみ）
+GITHUB_PAGES.md         GitHubでの公開手順
+scripts/                プレビュー生成
+assets/                 ファビコン
+tests/                  Node.jsテスト等
 ```
 
-## 大量データの扱い
+## GitHub Pagesへの公開
 
-- 解析した経路はGPS点列を保持し、同時に約60mの許容誤差で表示用の簡略化点列を生成します。
-- 全件重ね表示には簡略化点列を使い、選択中の1件は元の点列で描画します。
-- 数百ファイルの一括選択を想定しています。ただし実機での負荷・IndexedDBの容量上限はファイルのサイズ、GPS点数、ブラウザ、端末により変わります。数百件での実ファイル検証は未実施です。
-- インポートの進捗を表示します。実ファイルが極端に大きい場合は処理に時間がかかることがあります。
-- 「全件表示」の距離合計は走行ログの重複区間も含めて合計した値です。
+**[GITHUB_PAGES.md](GITHUB_PAGES.md)** に手順をまとめています。デモ経路を埋め込まないため、**公開サイトは初回アクセス時に空の地図を表示**し、ユーザーが自分のFIT/GPXを読み込めます。
 
-## データとプライバシー
-
-- GPSファイルはアプリ内のJavaScriptで処理し、**このプログラムからアップロードAPIに送信しません**。
-- 読み込んだ座標・時刻はIndexedDBに保存します。保存データは同じサイトのオリジンに属するスクリプトからアクセス可能なため、管理するGitHubリポジトリと外部ライブラリの安全性を保ってください。
-- 背景地図はOpenStreetMapへタイルを取りに行きます。取得先には表示エリアに関するタイル座標やアクセス情報が伝わります。LeafletのCSS/JSもCDNから取得します。
-- **Googleへの通信はリンクを押したときのみ**発生します。クリック地点の緯度・経度がGoogleのMaps URLに含まれます。クリック操作だけでGoogle APIへ位置情報を問い合わせるものではありません。
-- ブラウザのサイトデータを消す、プライベートウィンドウで使う、端末を変える、といった場合に保存記録が消える可能性があります。**FIT/GPXの原本を別途保持**してください。
-- 「GeoJSON出力」には位置情報を含みます。公開・共有に注意してください。
-- 架空のデモ経路はアプリコード内で生成しており、個人のログはリポジトリに含めていません。
-- OpenStreetMapの公式タイル配信は通常のインタラクティブな閲覧を想定しており、**タイルの一括取得／オフラインの地図配布は禁止**されています。高トラフィックのサービスにするなら適切な提供者のタイルを利用してください。
-
-## 既知の制限と今後の拡張
-
-この配布物は**動作確認用の初期デモ（MVP）**です。
-
-- FITは軽量パーサーによる標準的な位置記録の対応であり、すべての機種・複雑なFITプロファイル・チェーン形式を保証しません。本格運用では **Garmin公式 `@garmin/fitsdk` に置き換え**、手元の異なるデバイスの実ファイルで検証するのが適切です。
-- FITデータのCRC整合性チェックは実装していません。ファイル不正・破損に対する厳密な検出が必要ならGarmin SDKを利用してください。
-- 走行時間は最初と最後の記録時刻の差（経過時間）であり、停止時間を除いた「移動時間」とは異なります。
-- 標高から累積獲得標高を計算する処理は未実装です。
-- 複数端末間の同期やバックアップ／復元、重複走行の集約、通った道路のヒートマップは未実装です。
-- Google MapsではなくOpenStreetMapを背景にしています。
-- ストリートビューの撮影範囲や画像の有無を事前検証する機能はありません。Google側で画像が提供されない地点では利用できません。
-
-### 参照ドキュメント
-
-- [GitHub Pages - ブランチから公開](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
-- [Google Maps URLs / Street View（公式仕様）](https://developers.google.com/maps/documentation/urls/get-started#street-view-panorama)
-- [Leaflet 1.9 Quick Start](https://leafletjs.com/examples-v1/quick-start/)
-- [Garmin FIT SDK (JavaScript)](https://developer.garmin.com/fit/get-the-sdk/)
-- [OpenStreetMap Tile Usage Policy](https://operations.osmfoundation.org/policies/tiles/)
-
-## License
-
-The application's original code in this repository is released under the MIT License (see `LICENSE`). Third-party libraries, fonts, and map tiles remain subject to their respective licenses and usage policies.
+このリポジトリのオリジナルコードはMIT Licenseです。地図タイル・Leafletなど外部コンテンツには各々のライセンス・利用規約が適用されます。

@@ -1,4 +1,6 @@
-import { parseGpx, parseFit, prepareRoute } from './parsers.js';
+import { parseGpx, parseFit, prepareRoute, upgradeRoute } from './parsers.js';
+import { buildElevationProfile, formatDistanceElevation } from './elevation.js';
+import { createMapStyle, MAP_STYLE_IDS } from './map-styles.js';
 import { streetViewUrl, googleMapsPointUrl } from './streetview.js';
 
 const $ = id => document.getElementById(id);
@@ -9,10 +11,27 @@ const refs = {
   intro: $('intro'), map: $('map'), showAll: $('show-all'), hideAll: $('hide-all'), export: $('export'),
 };
 const COLORS = ['#e86146', '#3d9e95', '#6379d1', '#af76b6', '#d19b3f', '#4691c8', '#7eaa67', '#bc6588'];
-const state = { routes: [], selected: new Set(), active: null, query: '', year: '', format: '' };
+const SETTINGS_KEY = 'route-atlas-v0.3-settings';
+function readSettings() {
+  let raw = {};
+  try { raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch { /* storage may be blocked */ }
+  return {
+    mapStyle: MAP_STYLE_IDS.includes(raw.mapStyle) ? raw.mapStyle : 'osm',
+    precision: raw.precision === 'full' ? 'full' : 'standard',
+    lineWidth: Number.isFinite(Number(raw.lineWidth)) ? Math.max(3,Math.min(10,Math.round(Number(raw.lineWidth)*5)/5)) : 6.4,
+  };
+}
+const state = { routes: [], selected: new Set(), active: null, query: '', year: '', format: '', settings: readSettings() };
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY,JSON.stringify(state.settings)); }
+  catch { /* localStorage may be disabled; in-memory settings still work */ }
+}
+
 let map;
 let layerGroup;
+let baseLayer = null;
 let renderer;
+let currentProfile = null;
 let streetViewMarker = null;
 let database = null;
 
@@ -42,29 +61,38 @@ function filteredRoutes() {
     return true;
   });
 }
+function updateGsiCredit() {
+  const credit=$('gsi-zoom-credit');
+  if (!credit) return;
+  const z=map && typeof map.getZoom==='function' ? map.getZoom() : null;
+  credit.hidden=state.settings.mapStyle==='osm' || z==null || z<5 || z>8;
+}
+function switchBaseMap() {
+  if (!map || window.location.protocol === 'file:') return;
+  if (baseLayer) map.removeLayer(baseLayer);
+  baseLayer = createMapStyle(L, state.settings.mapStyle);
+  // Insert behind GPS polylines and the Street View marker.
+  baseLayer.addTo(map);
+  const warning = $('map-coverage');
+  warning.hidden = state.settings.mapStyle === 'osm';
+  updateGsiCredit();
+}
 function ensureMap() {
   if (!window.L) {
     refs.map.innerHTML = '<div class="map-failure">地図ライブラリを読み込めませんでした。ネットワーク接続を確認して再読込してください。</div>';
     status('Leafletを読み込めませんでした。ネット接続をご確認ください。', 'error');
     return false;
   }
-  map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([32.80, 129.92], 10);
-  L.control.zoom({ position: 'topright' }).addTo(map);
-  // The OSMF tile policy requires an HTTP Referer for web pages. Browsers do not
-  // send one from file://, so do not make non-compliant requests from local HTML.
+  map = L.map('map', {preferCanvas:true, zoomControl:false}).setView([32.80,129.92],10);
+  L.control.zoom({position:'topright'}).addTo(map);
   if (window.location.protocol === 'file:') {
     const warning = $('protocol-warning');
     if (warning) warning.hidden = false;
-  } else {
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
-      referrerPolicy: 'strict-origin-when-cross-origin',
-      maxZoom: 19,
-    }).addTo(map);
-  }
-  renderer = L.canvas({ padding: 0.2 });
+  } else switchBaseMap();
+  renderer = L.canvas({padding:0.2});
   layerGroup = L.layerGroup().addTo(map);
   map.on('click', event => showStreetViewAt(event.latlng));
+  map.on('zoomend',updateGsiCredit);
   return true;
 }
 
@@ -124,28 +152,33 @@ function clearStreetView() {
 function updateMap() {
   if (!map) return;
   layerGroup.clearLayers();
+  const weight = state.settings.lineWidth;
   for (const route of state.routes) {
     if (!state.selected.has(route.id)) continue;
     const color = colorFor(route);
-    for (const segment of (route.id === state.active ? route.segments : route.overview)) {
+    const isActive = route.id === state.active;
+    // The overview always retains 15m accuracy; full mode uses the GPS originals.
+    const segments = state.settings.precision === 'full' || isActive ? route.segments : route.overview;
+    for (const segment of segments) {
       if (segment.length < 2) continue;
-      const line = L.polyline(segment.map(p => [p.lat, p.lon]), {
-        renderer, color, weight: route.id === state.active ? 5 : 3.2,
-        opacity: route.id === state.active ? 0.96 : 0.75,
-        lineCap:'round', lineJoin:'round', interactive:true, bubblingMouseEvents:false,
+      const line = L.polyline(segment.map(p => [p.lat,p.lon]), {
+        renderer, color, weight: isActive ? weight * (10 / 6.4) : weight,
+        opacity: isActive ? 0.97 : 0.79,
+        lineCap:'round', lineJoin:'round',interactive:true,bubblingMouseEvents:false,
       }).addTo(layerGroup);
+      line._routeAtlasActive=isActive;
       line.on('click', event => { focusRoute(route.id); showStreetViewAt(event.latlng); });
-      line.bindTooltip(route.name, { sticky: true, direction: 'top' });
+      line.bindTooltip(route.name,{sticky:true,direction:'top'});
     }
   }
 }
 function zoomTo(routes) {
   if (!map || !routes.length) return;
-  const coords = [];
+  const bounds = L.latLngBounds([]);
   for (const route of routes) for (const segment of route.overview) {
-    for (const p of segment) coords.push([p.lat, p.lon]);
+    for (const p of segment) bounds.extend([p.lat,p.lon]);
   }
-  if (coords.length > 1) map.fitBounds(L.latLngBounds(coords), { padding: [35, 35], maxZoom: 14 });
+  if (bounds.isValid()) map.fitBounds(bounds,{padding:[35,35],maxZoom:14});
 }
 function focusRoute(id) {
   const route = state.routes.find(r => r.id === id);
@@ -169,59 +202,145 @@ function renderList() {
   refs.intro.hidden = state.routes.length > 0;
   if (!routes.length && state.routes.length) {
     const none = document.createElement('div');
-    none.className = 'no-results'; none.textContent = '条件に合う経路がありません。';
-    refs.list.appendChild(none);
+    none.className='no-results'; none.textContent='条件に合う経路がありません。';
+    refs.list.append(none);
     return;
   }
   const fragment = document.createDocumentFragment();
-  routes.forEach(route => {
+  for (const route of routes) {
     const entry = document.createElement('div');
     entry.className = `ride ${route.id === state.active ? 'active' : ''}`;
     const box = document.createElement('input');
-    box.type = 'checkbox'; box.className = 'ride-checkbox';
-    box.checked = state.selected.has(route.id);
-    box.setAttribute('aria-label', `${route.name} を表示`);
-    box.addEventListener('change', () => {
+    box.type='checkbox'; box.className='ride-checkbox';
+    box.checked=state.selected.has(route.id);
+    box.setAttribute('aria-label',`${route.name} を表示`);
+    box.addEventListener('change',()=>{
       if (box.checked) state.selected.add(route.id);
       else state.selected.delete(route.id);
-      if (!box.checked && state.active === route.id) state.active = null;
+      if (!box.checked && state.active === route.id) state.active=null;
       render();
     });
-    const bar = document.createElement('span'); bar.className = 'ride-color';
-    bar.style.backgroundColor = colorFor(route);
-    const main = document.createElement('button');
-    main.type = 'button'; main.className = 'ride-main';
-    main.title = '地図上のこの経路に移動';
-    const name = document.createElement('strong'); name.textContent = route.name;
-    const meta = document.createElement('small');
-    meta.textContent = `${formatDate(route.date)}   ·   ${route.distanceKm.toFixed(1)} km   ·   ${route.source}`;
-    main.append(name, meta);
-    main.addEventListener('click', () => focusRoute(route.id));
-    entry.append(box, bar, main);
+    const bar=document.createElement('span'); bar.className='ride-color';
+    bar.style.backgroundColor=colorFor(route);
+    const main=document.createElement('button'); main.type='button'; main.className='ride-main';
+    main.title='地図上のこの経路に移動';
+    const name=document.createElement('strong'); name.textContent=route.name;
+    const date=document.createElement('small'); date.className='ride-date';
+    date.textContent=`${formatDate(route.date)}  ·  ${route.source}`;
+    const meta=document.createElement('small'); meta.className='ride-metrics';
+    meta.textContent=formatDistanceElevation(route);
+    main.append(name,date,meta);
+    main.addEventListener('click',()=>focusRoute(route.id));
+    const del=document.createElement('button');del.type='button';del.className='ride-delete';
+    del.title=`${route.name} を削除`;del.setAttribute('aria-label',`${route.name} を削除`);
+    del.textContent='×';
+    del.addEventListener('click',()=>deleteRoute(route));
+    entry.append(box,bar,main,del);
     fragment.append(entry);
-  });
-  refs.list.appendChild(fragment);
+  }
+  refs.list.append(fragment);
 }
 function renderDetail() {
-  const route = state.routes.find(r => r.id === state.active);
+  const route = state.routes.find(r=>r.id === state.active) ||
+    (state.selected.size===1 ? state.routes.find(r=>state.selected.has(r.id)) : null);
   if (!route) {
-    refs.detail.innerHTML = '<span class="detail-empty">一覧の経路名をクリックすると詳細を表示できます。</span>';
+    refs.detail.innerHTML='<span class="detail-empty">一覧の経路名をクリックすると詳細を表示できます。標高プロファイルは1経路だけを表示すると現れます。</span>';
     return;
   }
   refs.detail.replaceChildren();
-  const title = document.createElement('strong'); title.textContent = route.name;
-  const specs = document.createElement('div'); specs.className = 'detail-grid';
-  for (const [label, value] of [
-    ['走行日', formatDate(route.date)], ['距離', `${route.distanceKm.toFixed(1)} km`],
-    ['経過時間', formatDuration(route.elapsedSeconds)], ['GPS点数', route.pointCount.toLocaleString('ja-JP')],
-    ['形式', route.source], ['種類', route.isDemo ? '架空のサンプル' : 'ローカルファイル'],
-  ]) {
-    const cell = document.createElement('div');
-    const k = document.createElement('span'); k.textContent = label;
-    const v = document.createElement('b'); v.textContent = value;
-    cell.append(k,v); specs.append(cell);
+  const heading=document.createElement('div');heading.className='detail-heading';
+  const title=document.createElement('strong');title.textContent=route.name;
+  const isolate=document.createElement('button');isolate.type='button';isolate.className='detail-isolate';
+  isolate.textContent='この経路のみ';isolate.title='この経路だけを表示して標高プロファイルを確認';
+  isolate.addEventListener('click',()=>{
+    state.selected=new Set([route.id]);state.active=route.id;
+    render();zoomTo([route]);
+  });
+  heading.append(title,isolate);
+  const summary=document.createElement('p');summary.className='detail-summary';
+  summary.textContent=formatDistanceElevation(route);
+  const specs=document.createElement('div');specs.className='detail-grid';
+  const cells=[
+    ['走行日',formatDate(route.date)],
+    ['経過時間',formatDuration(route.elapsedSeconds)],
+    ['GPS点数',route.pointCount.toLocaleString('ja-JP')],
+  ];
+  if (Number.isFinite(route.minElevation) && Number.isFinite(route.maxElevation)) {
+    cells.push(['最低標高',`${route.minElevation} m`],['最高標高',`${route.maxElevation} m`],
+      ['累積上昇',Number.isFinite(route.ascentMeters) ? `${route.ascentMeters.toLocaleString('ja-JP')} m` : '算出不可']);
   }
-  refs.detail.append(title, specs);
+  for (const [label,value] of cells) {
+    const cell=document.createElement('div');
+    const k=document.createElement('span');k.textContent=label;
+    const v=document.createElement('b');v.textContent=value;
+    cell.append(k,v);specs.append(cell);
+  }
+  refs.detail.append(heading,summary,specs);
+  if (route.elevationPointCount && route.elevationPointCount < route.pointCount) {
+    const note=document.createElement('small'); note.className='detail-caution';
+    note.textContent='一部のGPS点で標高が欠損しています。D+は標高のある連続区間のみから算出。';
+    refs.detail.append(note);
+  }
+}
+function renderElevation() {
+  const panel=$('elevation-panel'),svg=$('elevation-chart');
+  if (state.selected.size !== 1) {panel.hidden=true;return;}
+  const route=state.routes.find(r=>state.selected.has(r.id));
+  if (!route || !route.elevationPointCount || !Number.isFinite(route.minElevation)) {
+    panel.hidden=true;return;
+  }
+  if (!currentProfile || currentProfile.id !== route.id) {
+    currentProfile={id:route.id,profile:buildElevationProfile(route.segments)};
+  }
+  const data=currentProfile.profile;
+  if (data.sampleCount < 2) {panel.hidden=true;return;}
+  panel.hidden=false;
+  $('elevation-route-name').textContent=route.name;
+  const W=680,H=175,margin={left:52,right:16,top:15,bottom:29};
+  const w=W-margin.left-margin.right,h=H-margin.top-margin.bottom;
+  const maxDistance=Math.max(0.01,data.distanceKm);
+  const low=data.minElevation,high=data.maxElevation;
+  const pad=Math.max(4,(high-low)*0.08);
+  const lo=low-pad,hi=high+pad;
+  const fx=x=>margin.left+(x/maxDistance)*w;
+  const fy=y=>margin.top+(hi-y)/(hi-lo)*h;
+  const color=colorFor(route);
+  const ticks=[];
+  for (let i=0;i<=4;i++) {
+    const y=margin.top+i*h/4;
+    const value=hi-i*(hi-lo)/4;
+    ticks.push(`<line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${W-margin.right}" y2="${y.toFixed(2)}" stroke="#e0eae5" stroke-width="1"/>`);
+    ticks.push(`<text x="${margin.left-8}" y="${(y+4).toFixed(2)}" text-anchor="end" fill="#6d847a" font-size="11">${Math.round(value)}</text>`);
+  }
+  for (let i=0;i<=4;i++) {
+    const x=margin.left+i*w/4;
+    ticks.push(`<text x="${x.toFixed(2)}" y="${H-7}" text-anchor="middle" fill="#6d847a" font-size="11">${(maxDistance*i/4).toFixed(1)}</text>`);
+  }
+  const paths=data.paths.filter(path=>path.length>=2).map(path=>{
+    const d=path.map((p,i)=>`${i?'L':'M'}${fx(p.km).toFixed(2)},${fy(p.ele).toFixed(2)}`).join(' ');
+    return `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.3" stroke-linejoin="round" stroke-linecap="round"/>`;
+  });
+  svg.innerHTML=`<rect x="${margin.left}" y="${margin.top}" width="${w}" height="${h}" fill="#f8fbf9"/>${ticks.join('')}<text x="12" y="12" fill="#54786a" font-size="11">標高 m</text>${paths.join('')}<line id="profile-crosshair" x1="0" y1="${margin.top}" x2="0" y2="${H-margin.bottom}" stroke="#304b43" stroke-width="1" stroke-dasharray="3 3" visibility="hidden"/><circle id="profile-marker" cx="0" cy="0" r="4" fill="${color}" stroke="#ffffff" stroke-width="2" visibility="hidden"/>`;
+  $('elevation-hover').textContent='GPSログの標高値から作成（カーソルで詳細）';
+  svg._profileData={data,fx,fy,margin,w,h};
+}
+function handleElevationHover(event) {
+  const svg=$('elevation-chart'), meta=svg._profileData;
+  if (!meta) return;
+  const rect=svg.getBoundingClientRect();
+  const localX=(event.clientX-rect.left)/rect.width*680;
+  const wantedKm=(Math.min(meta.margin.left+meta.w,Math.max(meta.margin.left,localX))-meta.margin.left)/meta.w*meta.data.distanceKm;
+  let closest=null,dist=Infinity;
+  for (const path of meta.data.paths) for (const p of path) {
+    const d=Math.abs(p.km-wantedKm);
+    if (d<dist) {dist=d;closest=p;}
+  }
+  if (!closest) return;
+  const x=meta.fx(closest.km),y=meta.fy(closest.ele);
+  const cross=$('profile-crosshair'),marker=$('profile-marker');
+  cross.setAttribute('x1',x);cross.setAttribute('x2',x);cross.setAttribute('visibility','visible');
+  marker.setAttribute('cx',x);marker.setAttribute('cy',y);marker.setAttribute('visibility','visible');
+  $('elevation-hover').textContent=`${closest.km.toFixed(2)} km / 標高 ${Math.round(closest.ele)} m`;
 }
 function renderStats() {
   refs.total.textContent = state.routes.length.toLocaleString('ja-JP');
@@ -230,9 +349,7 @@ function renderStats() {
   refs.km.textContent = km.toLocaleString('ja-JP',{maximumFractionDigits:1});
 }
 function render() {
-  renderStats(); renderList(); renderDetail(); updateMap();
-  const mark = document.querySelector('.demo-watermark');
-  if (mark) mark.hidden = !state.routes.some(r => r.isDemo && state.selected.has(r.id));
+  renderStats(); renderList(); renderDetail(); renderElevation(); updateMap();
 }
 
 function setupListeners() {
@@ -250,8 +367,32 @@ function setupListeners() {
   refs.hideAll.addEventListener('click', () => { for (const r of filteredRoutes()) state.selected.delete(r.id); state.active = null; render(); });
   $('zoom-all').addEventListener('click', () => zoomTo(state.routes.filter(r => state.selected.has(r.id))));
   $('clear-streetview').addEventListener('click', clearStreetView);
-  $('demo-button').addEventListener('click', loadDemo);
   $('clear-button').addEventListener('click', clearRoutes);
+  $('map-style').value=state.settings.mapStyle;
+  $('route-precision').value=state.settings.precision;
+  $('route-width').value=String(state.settings.lineWidth);
+  $('route-width-value').textContent=`${state.settings.lineWidth.toFixed(1)}px`;
+  $('map-style').addEventListener('change',e=>{
+    state.settings.mapStyle=e.target.value;
+    saveSettings();switchBaseMap();
+  });
+  $('route-precision').addEventListener('change',e=>{
+    state.settings.precision=e.target.value;saveSettings();updateMap();
+  });
+  $('route-width').addEventListener('input',e=>{
+    state.settings.lineWidth=Number(e.target.value);
+    $('route-width-value').textContent=`${state.settings.lineWidth.toFixed(1)}px`;
+    saveSettings();
+    if (layerGroup) for (const line of layerGroup.getLayers()) {
+      line.setStyle({weight:line._routeAtlasActive ? state.settings.lineWidth*(10/6.4) : state.settings.lineWidth});
+    }
+  });
+  $('elevation-chart').addEventListener('mousemove',handleElevationHover);
+  $('elevation-chart').addEventListener('mouseleave',()=>{
+    $('profile-crosshair')?.setAttribute('visibility','hidden');
+    $('profile-marker')?.setAttribute('visibility','hidden');
+    $('elevation-hover').textContent='GPSログの標高値から作成（カーソルで詳細）';
+  });
   refs.export.addEventListener('click', exportSelected);
   $('help-button').addEventListener('click', () => $('help-dialog').showModal());
   $('close-help').addEventListener('click', () => $('help-dialog').close());
@@ -260,49 +401,6 @@ function setupListeners() {
   for (const evt of ['dragleave','drop']) drop.addEventListener(evt, e=>{ e.preventDefault(); drop.classList.remove('dragging'); });
   drop.addEventListener('drop', e => importFiles(e.dataTransfer.files));
   window.addEventListener('resize', () => map?.invalidateSize());
-}
-
-function sampleSegment(waypoints, index) {
-  const points = [];
-  for (let leg = 0; leg < waypoints.length - 1; leg++) {
-    const [lat1, lon1] = waypoints[leg], [lat2, lon2] = waypoints[leg + 1];
-    const steps = 21;
-    for (let i = 0; i < steps; i++) {
-      const t = i / steps;
-      const wiggle = Math.sin(t * Math.PI) * Math.sin(t * 3 * Math.PI + index * 1.9) * 0.0013;
-      const date = new Date(Date.UTC(2026, 8, 5 + index, 0, 0, 0) + (leg * steps + i) * 60000);
-      points.push({lat:lat1+(lat2-lat1)*t+wiggle,lon:lon1+(lon2-lon1)*t+wiggle,time:date.toISOString()});
-    }
-  }
-  const [lastLat, lastLon] = waypoints[waypoints.length - 1];
-  points.push({lat:lastLat,lon:lastLon});
-  return points;
-}
-function demoRoutes() {
-  // Synthetic routes for UI demonstration only, not real road data.
-  const examples = [
-    ['デモ：長崎市内ループ',[[32.744,129.874],[32.765,129.894],[32.790,129.871],[32.777,129.839],[32.749,129.849],[32.744,129.874]]],
-    ['デモ：大村湾方面',[[32.744,129.874],[32.833,129.912],[32.911,129.952],[32.941,129.952],[32.911,129.952],[32.833,129.912],[32.744,129.874]]],
-    ['デモ：諫早方面',[[32.756,129.878],[32.790,129.959],[32.840,130.014],[32.844,130.054],[32.810,130.005],[32.756,129.878]]],
-    ['デモ：西彼杵半島',[[32.753,129.851],[32.793,129.797],[32.858,129.747],[32.925,129.723],[32.889,129.749],[32.813,129.802],[32.753,129.851]]],
-    ['デモ：野母崎方面',[[32.744,129.874],[32.697,129.864],[32.641,129.829],[32.591,129.795],[32.622,129.805],[32.697,129.864],[32.744,129.874]]],
-    ['デモ：島原半島',[[32.843,130.048],[32.771,130.119],[32.743,130.216],[32.785,130.333],[32.870,130.311],[32.887,130.185],[32.843,130.048]]],
-    ['デモ：佐世保方面',[[32.912,129.963],[33.005,129.924],[33.105,129.797],[33.159,129.721],[33.125,129.774],[33.005,129.924],[32.912,129.963]]],
-  ];
-  return examples.map(([name, points], index) => prepareRoute({
-    id:`demo-${index}`, name, source:'DEMO', segments:[sampleSegment(points,index)], isDemo:true,
-    date:new Date(Date.UTC(2026,8,5+index)).toISOString(),
-  }));
-}
-function loadDemo() {
-  const exists = new Set(state.routes.map(r => r.id));
-  const examples = demoRoutes().filter(r=>!exists.has(r.id));
-  state.routes.push(...examples);
-  for (const r of examples) state.selected.add(r.id);
-  if (examples.length) state.active = examples[0].id;
-  updateYearOptions(); render();
-  zoomTo(state.routes.filter(r => state.selected.has(r.id)));
-  status(examples.length ? `${examples.length}件の架空デモ経路を追加しました（保存しません）。` : 'デモ経路は追加済みです。');
 }
 
 async function openDatabase() {
@@ -355,10 +453,6 @@ async function importFiles(fileList) {
   }
   let saveError = null;
   if (pending.length) {
-    // Remove synthetic routes on first real import, avoiding accidental demo mixing.
-    const old = state.routes.filter(r=>r.isDemo);
-    for (const r of old) state.selected.delete(r.id);
-    state.routes = state.routes.filter(r=>!r.isDemo);
     state.routes.push(...pending);
     state.routes.sort((a,b)=>new Date(b.date || 0)-new Date(a.date || 0));
     for (const r of pending) state.selected.add(r.id);
@@ -373,13 +467,30 @@ async function importFiles(fileList) {
   status(`${message}${saveError ? ' 保存失敗: ' + saveError : ''}${errors.length ? ' 例: ' + errors.slice(0,2).join(' / ') : ''}`, (errors.length || saveError) ? 'warning' : 'success');
 }
 
+async function deleteRoute(route) {
+  if (!window.confirm(`「${route.name}」を削除しますか？\nこのブラウザ内の保存記録も削除します。元のFIT/GPXファイルは変更しません。`)) return;
+  if (database) {
+    try {
+      const tx=database.transaction('routes','readwrite');
+      tx.objectStore('routes').delete(route.id);
+      await transactionPromise(tx);
+    } catch(e) {status(`経路を削除できませんでした: ${e.message}`,'error');return;}
+  }
+  state.routes=state.routes.filter(r=>r.id!==route.id);
+  state.selected.delete(route.id);
+  if (state.active===route.id) state.active=null;
+  if (currentProfile?.id===route.id) currentProfile=null;
+  updateYearOptions();render();
+  status(`「${route.name}」を削除しました。元のFIT/GPXファイルは残っています。`,'success');
+}
+
 async function clearRoutes() {
   if (!window.confirm('このブラウザに保存したGPSログと現在の一覧を全て削除しますか？\n元のFIT/GPXファイルは削除されません。')) return;
   if (database) {
     try { const tx=database.transaction('routes','readwrite'); tx.objectStore('routes').clear(); await transactionPromise(tx); }
     catch(e) { status(`保存データを削除できませんでした: ${e.message}`,'error'); return; }
   }
-  state.routes=[]; state.selected.clear(); state.active=null;
+  state.routes=[]; state.selected.clear(); state.active=null; currentProfile=null;
   updateYearOptions(); render();
   status('保存された経路を削除しました。元のファイルは変更していません。');
 }
@@ -389,7 +500,7 @@ function exportSelected() {
   if (!selected.length) { status('エクスポートする経路を選択してください。','warning'); return; }
   const geojson = {
     type:'FeatureCollection',
-    features:selected.map(r=>({type:'Feature', properties:{name:r.name,date:r.date,format:r.source,distance_km:r.distanceKm},
+    features:selected.map(r=>({type:'Feature', properties:{name:r.name,date:r.date,format:r.source,distance_km:r.distanceKm,ascent_m:r.ascentMeters,min_elevation_m:r.minElevation,max_elevation_m:r.maxElevation},
       geometry:{type:'MultiLineString',coordinates:r.segments.map(seg=>seg.map(p=>[p.lon,p.lat,...(Number.isFinite(p.ele)?[p.ele]:[])]))}})),
   };
   const url=URL.createObjectURL(new Blob([JSON.stringify(geojson)],{type:'application/geo+json'}));
@@ -399,14 +510,43 @@ function exportSelected() {
 }
 
 async function init() {
-  ensureMap(); setupListeners();
-  try { database = await openDatabase(); state.routes = await loadSavedRoutes(); }
-  catch(e) { status('ブラウザ保存を利用できません。経路はこのページを閉じると消える場合があります。','warning'); }
+  ensureMap();setupListeners();
+  try {
+    database=await openDatabase();
+    const saved=await loadSavedRoutes();
+    const migrated=[];
+    for (let i=0;i<saved.length;i++) {
+      // Older installations could contain synthetic demo entries: do not load them.
+      if (saved[i].isDemo || String(saved[i].id).startsWith('demo-')) continue;
+      try {
+        const updated=upgradeRoute(saved[i]);
+        state.routes.push(updated);
+        if (updated!==saved[i]) migrated.push(updated);
+      } catch(e) {console.warn('Skipping unreadable saved route:',e);}
+      // Avoid freezing the map while migrating hundreds of old tracks.
+      if (i%10===0) await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    if (migrated.length) {
+      try {
+        for (let i=0;i<migrated.length;i+=15) {
+          await saveRoutes(migrated.slice(i,i+15));
+          await new Promise(resolve=>setTimeout(resolve,0));
+        }
+      } catch(e) {
+        status(`旧記録の表示用データを再計算しましたが、保存に失敗しました: ${e.message}`,'warning');
+      }
+    }
+  } catch(e) {
+    status('ブラウザ保存を利用できません。経路はこのページを閉じると消える場合があります。','warning');
+  }
   if (state.routes.length) {
-    state.routes.sort((a,b)=>new Date(b.date || 0)-new Date(a.date || 0));
-    state.selected = new Set(state.routes.map(r=>r.id));
-    updateYearOptions(); render(); zoomTo(state.routes);
+    state.routes.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+    state.selected=new Set(state.routes.map(r=>r.id));
+    updateYearOptions();render();zoomTo(state.routes);
     status(`${state.routes.length}件の保存済みログを読み込みました。`,'success');
-  } else { loadDemo(); }
+  } else {
+    updateYearOptions();render();
+    if (!['warning','error'].includes(refs.message.dataset.kind)) status('経路はまだ登録されていません。FIT / GPXを追加してください。');
+  }
 }
 init();

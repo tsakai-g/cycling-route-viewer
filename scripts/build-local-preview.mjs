@@ -10,16 +10,16 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const read = async p => readFile(resolve(root, p), 'utf8');
-const [index, css, parsers, streetview, app] = await Promise.all([
-  read('index.html'), read('styles.css'), read('src/parsers.js'),
-  read('src/streetview.js'), read('src/app.js'),
+const [index, css, elevation, parsers, mapStyles, streetview, app] = await Promise.all([
+  read('index.html'), read('styles.css'), read('src/elevation.js'), read('src/parsers.js'),
+  read('src/map-styles.js'), read('src/streetview.js'), read('src/app.js'),
 ]);
 
 const scriptRegex = /<script defer src="(https:\/\/unpkg\.com\/leaflet@1\.9\.4\/dist\/leaflet\.js)"([^>]*)><\/script>\s*<script defer type="module" src="src\/app\.js"><\/script>/;
 const found = index.match(scriptRegex);
 if (!found) throw new Error('index.html Leaflet/module script tags not found');
 const leafletScript = `<script src="${found[1]}"${found[2]}></script>`;
-const cleaned = [parsers, streetview, app]
+const cleaned = [elevation, parsers, mapStyles, streetview, app]
   .map(s => s.replace(/^import\s+[^\n;]+;\s*$/gm, '').replace(/^export\s+/gm, ''))
   .join('\n\n');
 const safeJs = cleaned.replace(/<\/script/gi, '<\\/script');

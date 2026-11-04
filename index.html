@@ -6,7 +6,7 @@
   <meta name="description" content="FIT / GPXのサイクリング経路をローカルで重ねて閲覧できるWebアプリ。">
   <meta name="color-scheme" content="light">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <title>Cycling Route Viewer — GPS走行ログの地図ビューア</title>
+  <title>Route Atlas v0.3 — GPS走行ログの地図ビューア</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
   <link rel="stylesheet" href="styles.css">
@@ -45,7 +45,7 @@
         <input id="folder-input" class="sr-only" type="file" webkitdirectory multiple>
       </div>
       <progress id="import-progress" class="import-progress" max="100" value="0" hidden></progress>
-      <div id="message" class="message" role="status" aria-live="polite">架空のデモ経路を表示しています。</div>
+      <div id="message" class="message" role="status" aria-live="polite">FIT / GPXファイルを追加すると、経路を表示できます。</div>
       <div class="metrics" aria-label="経路の集計">
         <div><span>全経路</span><b id="stat-total">0</b><small>件</small></div>
         <div><span>表示中</span><b id="stat-shown">0</b><small>件</small></div>
@@ -59,7 +59,7 @@
         </label>
         <div class="filters">
           <label><span class="sr-only">年で絞り込み</span><select id="year-filter"><option value="">すべての年</option></select></label>
-          <label><span class="sr-only">形式で絞り込み</span><select id="format-filter"><option value="">すべての形式</option><option value="GPX">GPX</option><option value="FIT">FIT</option><option value="DEMO">デモ</option></select></label>
+          <label><span class="sr-only">形式で絞り込み</span><select id="format-filter"><option value="">すべての形式</option><option value="GPX">GPX</option><option value="FIT">FIT</option></select></label>
         </div>
         <div class="selection-actions">
           <button id="show-all" type="button">表示を選択</button><span aria-hidden="true">/</span><button id="hide-all" type="button">表示を解除</button>
@@ -70,9 +70,8 @@
       </section>
     </div>
     <div class="sidebar-footer">
-      <button id="demo-button" type="button">デモ経路</button>
       <button id="export" type="button">GeoJSON出力</button>
-      <button id="clear-button" type="button" class="danger">データ削除</button>
+      <button id="clear-button" type="button" class="danger">全経路を削除</button>
       <div class="privacy-label"><span aria-hidden="true">●</span> GPSファイルをサーバーにアップロードしません</div>
     </div>
   </aside>
@@ -81,6 +80,30 @@
       <div class="map-heading"><span class="map-heading-marker"></span><span>CYCLING ROUTES</span><small>経路の重ね合わせ</small></div>
       <button id="zoom-all" type="button" class="button button-zoom">表示経路に合わせる <span aria-hidden="true">⌗</span></button>
     </div>
+    <section class="map-settings" aria-label="表示設定">
+      <label for="map-style"><span>背景地図</span>
+        <select id="map-style">
+          <option value="osm">OpenStreetMap</option>
+          <option value="gsi-topo">国土地理院・地形図</option>
+          <option value="gsi-relief">国土地理院・色別標高図</option>
+          <option value="gsi-shade">国土地理院・陰影起伏図</option>
+        </select>
+      </label>
+      <label for="route-precision"><span>経路精度</span>
+        <select id="route-precision">
+          <option value="standard">標準（15m）</option>
+          <option value="full">最高精度（元の全点）</option>
+        </select>
+      </label>
+      <label for="route-width" class="width-control"><span>線の太さ <output id="route-width-value" for="route-width">6.4px</output></span>
+        <input id="route-width" type="range" min="3" max="10" step="0.2" value="6.4">
+      </label>
+      <p id="map-coverage" class="map-coverage" hidden>国土地理院の地図は日本国内向けです。</p>
+    </section>
+    <aside id="gsi-zoom-credit" class="gsi-zoom-credit" hidden aria-label="地理院地図の追加出典">
+      低ズーム地図の出典：GEBCO Digital Atlas（BODC / IOC / IHO, 2003）、海上保安庁許可第292502号、VMAP0（NIMA / USGS, 1997）。
+      <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">詳細出典</a>
+    </aside>
     <div class="streetview-hint" aria-label="ストリートビュー操作の案内">
       <span class="streetview-hint-icon" aria-hidden="true">◉</span>
       <span>地図をクリック → <b>ストリートビュー</b></span>
@@ -92,18 +115,26 @@
       <p>このHTMLを直接開く <code>file://</code> 方式では、OpenStreetMapの地図タイルが403で拒否されます。</p>
       <p>配布フォルダ内の <strong>run-local.cmd</strong> をダブルクリックし、<code>http://127.0.0.1:8000/</code> で開いてください。Pythonがない場合はREADMEを参照してください。</p>
     </section>
-    <div class="detail" id="detail" aria-live="polite"><span class="detail-empty">一覧の経路名をクリックすると詳細を表示できます。</span></div>
-    <div class="demo-watermark">DEMO ROUTES ARE SYNTHETIC</div>
+    <div class="route-bottom">
+      <div class="detail" id="detail" aria-live="polite"><span class="detail-empty">一覧の経路名をクリックすると詳細を表示できます。</span></div>
+      <section id="elevation-panel" class="elevation-panel" aria-label="選択経路の標高プロファイル" hidden>
+        <div class="elevation-heading"><strong>標高プロファイル</strong><span id="elevation-route-name"></span></div>
+        <svg id="elevation-chart" viewBox="0 0 680 175" role="img" aria-label="距離に対する標高の変化"></svg>
+        <div class="elevation-footer"><span>距離（km） →</span><span id="elevation-hover">GPSログの標高値から作成</span></div>
+      </section>
+    </div>
   </main>
   <div class="drop-hint" aria-hidden="true"><div><b>FIT・GPXファイルをドロップ</b><span>複数ファイルをまとめて追加できます</span></div></div>
 </div>
 <dialog id="help-dialog" class="help-dialog">
   <div class="dialog-header"><h2>使い方とデータの取り扱い</h2><button type="button" id="close-help" class="icon-button" aria-label="閉じる">×</button></div>
-  <p>左側の「FIT / GPXを追加」またはドラッグ＆ドロップでファイルを読み込みます。経路のチェックで重ね合わせを切り替え、経路名を選ぶとその位置へ移動します。</p>
+  <p>左側からFIT/GPXファイルを追加します。経路のチェックで重ね合わせを切り替え、経路名をクリックするとズームします。各行の削除ボタンは確認後にIndexedDB内の記録も削除します（元ファイルはそのままです）。</p>
+  <p><strong>表示設定：</strong> 背景地図はOpenStreetMap・国土地理院の地形図・色別標高図・陰影起伏図を切り替えられます。標準精度は15mの簡略化、最高精度は元の全GPS点です。線の太さは初期値6.4pxで変更可能です。設定はこのブラウザに保存されます。</p>
+  <p><strong>標高：</strong> 経路に標高情報があれば、距離と「D+累積上昇 (最低-最高) m」を表示します。D+は記録値を5点中央値で平滑化し、3m未満の細かな逆行を除いた推定値のため、機器表示と異なる場合があります。チェックが1経路だけのときに標高プロファイルを表示します。標高がないファイルでは表示されません。</p>
   <p><strong>ストリートビュー：</strong> 地図の任意の地点、または表示中の経路をクリックすると、その地点の緯度・経度を示すマーカーとポップアップが開きます。「Googleストリートビューで開く」をクリックすると新しいタブでGoogleマップのストリートビューを表示します。見つからない地点では画像が表示されない、または近くの撮影地点へ移動する場合があります。ポップアップには通常のGoogleマップで地点を開くリンクもあります。</p>
   <p><strong>GPSファイルはサーバーに送信されません。</strong> 読み込んだ経路は現在のブラウザのIndexedDBへ保存されます。ブラウザのデータ削除・プライベートモードなどでは消えることがあります。元のFIT/GPXファイルは保管してください。</p>
-  <p>地図画像はOpenStreetMapの地図タイルサーバーから取得するため、表示地域に対応するタイル座標などはその提供者に伝わります。ストリートビューのリンクを押すと、クリックした地点の座標がGoogleにURLとして送信されます（クリックしただけではGoogleへは送信しません）。</p>
-  <p>初期の7経路は画面確認用に合成した架空のデータです。実在する道路を正確にたどるものではありません。FIT解析は標準的な位置記録に対応した軽量実装です（特殊なFITファイルには未対応の場合があります）。</p>
+  <p>背景地図のタイルをOpenStreetMapまたは国土地理院から取得するため、表示地域やアクセス情報は地図提供者に伝わります。国土地理院の地形・標高地図は日本国内向けです。ストリートビューのリンクを押すと、座標がGoogleへ渡されます。</p>
+  <p>初期状態にデモ経路はありません。以前のv0.2で保存したログはGPS点列を保持したままv0.3の表示用情報を再計算します。FIT解析は標準的な位置記録に対応した軽量実装です（特殊なFITファイルには未対応の場合があります）。</p>
   <p class="dialog-caption">公開サイトには個人の走行ログを含めないでください。GeoJSON出力には個人の位置情報が含まれます。</p>
 </dialog>
 </body>

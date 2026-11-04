@@ -6,14 +6,14 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 
 test('web app uses policy-compliant referrer setting for OSMF tile requests', () => {
   assert.match(read('index.html'), /name="referrer" content="strict-origin-when-cross-origin"/);
-  assert.match(read('src/app.js'), /referrerPolicy:\s*'strict-origin-when-cross-origin'/);
+  assert.match(read('src/map-styles.js'), /referrerPolicy:\s*'strict-origin-when-cross-origin'/);
 });
 
 test('file scheme never initializes OSM tile requests and displays instructions', () => {
   const app = read('src/app.js');
   assert.match(app, /window\.location\.protocol === 'file:'/);
   assert.ok(app.includes("$('protocol-warning')"));
-  assert.match(app, /else\s*\{\s*L\.tileLayer\('https:\/\/tile\.openstreetmap\.org/);
+  assert.match(app, /else switchBaseMap\(\)/);
   const html = read('local-preview.html');
   assert.match(html, /id="protocol-warning"/);
   assert.match(html, /window\.location\.protocol === 'file:'/);

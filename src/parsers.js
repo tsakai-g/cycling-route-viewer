@@ -1,3 +1,5 @@
+import { computeElevationStats } from './elevation.js';
+
 /**
  * Cycling Route Viewer - parsers and geometry utilities.
  * GPX parsing uses the browser's DOMParser. FIT decoding supports standard
@@ -61,7 +63,7 @@ export function simplify(segment, toleranceMeters = 40) {
   return segment.filter((_, i) => keep[i]);
 }
 
-export function prepareRoute({ id, name, source, segments, date, isDemo = false }) {
+export function prepareRoute({ id, name, source, segments, date }) {
   const cleaned = segments.map(seg => seg.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180))
     .filter(seg => seg.length >= 2);
   if (!cleaned.length) throw new Error('有効なGPS座標が見つかりません');
@@ -72,13 +74,31 @@ export function prepareRoute({ id, name, source, segments, date, isDemo = false 
   const lastTime = last.time || null;
   const seconds = firstTime && lastTime ? (new Date(lastTime) - new Date(firstTime)) / 1000 : null;
   return {
-    id, name, source, isDemo, date: date || firstTime || null,
+    id, name, source, date: date || firstTime || null,
     distanceKm: Math.round(lengthKm(cleaned) * 10) / 10,
     elapsedSeconds: seconds > 0 && seconds < 60 * 60 * 24 * 14 ? Math.round(seconds) : null,
     pointCount: cleaned.reduce((sum, seg) => sum + seg.length, 0),
     segments: cleaned,
-    overview: cleaned.map(seg => simplify(seg, 60)),
+    overview: cleaned.map(seg => simplify(seg, 15)),
+    overviewToleranceMeters: 15, schemaVersion: 3,
+    ...computeElevationStats(cleaned),
   };
+}
+
+/** Upgrade persisted v0.2 records without losing their original track points. */
+export function upgradeRoute(route) {
+  if (!route || !Array.isArray(route.segments)) throw new Error('保存された経路のGPS点列が不正です');
+  if (route.schemaVersion === 3 && route.overviewToleranceMeters === 15 &&
+      Array.isArray(route.overview) && Object.hasOwn(route, 'elevationPointCount')) return route;
+  const upgraded = {
+    ...route,
+    overview: route.segments.map(seg => simplify(seg, 15)),
+    overviewToleranceMeters: 15,
+    schemaVersion: 3,
+    ...computeElevationStats(route.segments),
+  };
+  delete upgraded.isDemo;
+  return upgraded;
 }
 
 function gpxChildren(el, localName) {
