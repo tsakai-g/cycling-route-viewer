@@ -1,3 +1,4 @@
+[![App: Route Atlas](assets/favicon.svg)](https://tsakai-g.github.io/cycling-route-viewer/)
 # Route Atlas v0.3 — FIT / GPX Cycling Route Viewer
 
 FIT/GPXの走行履歴を一括で読み込み、数百件の経路を地図上で一覧・比較できる **ブラウザ内完結型（local-first）の静的Webアプリ**です。Google My MapsやGoogle Maps APIキー、独自のバックエンドサーバーは不要です。GitHub Pagesにそのまま公開できます。
