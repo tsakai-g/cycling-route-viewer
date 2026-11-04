@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="FIT / GPXのサイクリング経路をローカルで重ねて閲覧できるWebアプリ。">
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Cycling Route Viewer — GPS走行ログの地図ビューア</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+  <style>
+:root{font-family:system-ui,'Hiragino Kaku Gothic ProN','Yu Gothic',Meiryo,sans-serif;color:#1d302e;background:#f3f5f0;font-synthesis:none;font-smooth:always}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+button,input,select{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #80baa6;outline-offset:2px}
+button:disabled{opacity:.5;cursor:default}
+.app-shell{height:100dvh;min-height:570px;display:flex;overflow:hidden;background:#f7f8f5}
+.sidebar{z-index:4;width:388px;flex:0 0 388px;display:flex;flex-direction:column;background:#fff;box-shadow:3px 0 16px #1e312a13}
+.masthead{height:83px;padding:22px 24px 18px;display:flex;align-items:center;border-bottom:1px solid #ebefed;gap:12px;flex-shrink:0}
+.logo{width:43px;height:43px;padding:5px;background:#154c49;color:#d4f1cb;border-radius:14px}
+.logo svg{width:100%;height:100%}
+.brand{display:flex;flex-direction:column;gap:2px;flex:1}
+.brand strong{font-size:20px;line-height:1.1;letter-spacing:-.7px;color:#173b37}
+.brand span{font-size:9px;letter-spacing:2.4px;font-weight:800;color:#90a5a0}
+.icon-button{width:32px;height:32px;display:inline-grid;place-items:center;border-radius:50%;border:1px solid #dce6e2;background:white;color:#607d74;font-weight:800}
+.sidebar-scroll{overflow-y:auto;flex:1;min-height:0;scrollbar-color:#d6dfdb transparent;scrollbar-width:thin}
+.welcome{padding:25px 26px 17px}
+.eyebrow{color:#7da38e;font-size:10px;font-weight:800;letter-spacing:2px;margin:0 0 12px}
+h1{font-size:26px;line-height:1.5;letter-spacing:-1.3px;color:#173834;margin:0 0 9px;font-weight:800}
+.welcome>p:last-child{font-size:12px;line-height:1.8;color:#748780;margin:0}
+.upload-actions{display:flex;gap:8px;padding:7px 24px 12px}
+.button{border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:11px;font-weight:700;font-size:12px;padding:13px 12px;white-space:nowrap}
+.button svg{width:17px;height:17px;stroke-width:1.9;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.button-primary{flex:1;background:#1c6256;color:white;box-shadow:0 5px 11px #174e4225}
+.button-primary:hover{background:#124d44}
+.button-outline{background:#edf4f0;color:#32675b;border-color:#e0ece5}
+.button-outline:hover{background:#e0efe7}
+.import-progress{width:calc(100% - 48px);height:5px;margin:0 24px;accent-color:#3a9e84}
+.message{font-size:10px;color:#648175;min-height:25px;line-height:1.5;padding:2px 26px 12px;overflow-wrap:anywhere}
+.message[data-kind="error"]{color:#af4747}
+.message[data-kind="warning"]{color:#9b702d}
+.message[data-kind="success"]{color:#267f63}
+.metrics{margin:5px 24px 26px;padding:16px 14px;border-radius:14px;background:#eff5f0;display:grid;grid-template-columns:1fr 1fr 1.45fr;gap:5px}
+.metrics>div{border-right:1px solid #dbe9e1;padding:0 5px}
+.metrics>div:last-child{border-right:none;padding-left:10px}
+.metrics span{display:block;font-size:10px;color:#7c9488;margin-bottom:5px}
+.metrics b{font-size:24px;letter-spacing:-1px;color:#173e37;line-height:1.2;font-variant-numeric:tabular-nums}
+.metrics small{font-size:10px;color:#729183;margin-left:3px}
+.collection{padding:0 24px 24px}
+.section-heading{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:13px}
+.section-heading h2{font-size:15px;margin:0;letter-spacing:-.2px}
+.section-hint{font-size:10px;color:#9aada4}
+.search-field{display:flex;align-items:center;gap:9px;border:1px solid #dce6e1;border-radius:10px;padding:0 12px;height:42px}
+.search-field svg{width:16px;height:16px;fill:none;stroke:#93a79f;stroke-width:2;flex-shrink:0}
+.search-field input{border:none;outline:none!important;width:100%;background:none;font-size:12px;color:#27453d}
+.search-field input::placeholder{color:#a1aea9}
+.filters{margin:10px 0 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.filters select{width:100%;background:#f7f9f6;border:1px solid #e1e9e3;border-radius:8px;padding:9px;font-size:11px;color:#577167}
+.selection-actions{display:flex;align-items:center;gap:8px;font-size:10px;margin-bottom:11px;flex-wrap:wrap;color:#a5b5ad}
+.selection-actions button{padding:0;border:0;background:none;color:#287966;font-weight:700;font-size:11px}
+.selection-actions button:hover{text-decoration:underline}
+.selection-actions small{display:block;flex-basis:100%;font-size:9px;color:#a6b4ae}
+.ride-list{display:flex;flex-direction:column;border-top:1px solid #edf1ee}
+.ride{display:flex;align-items:center;gap:10px;min-height:64px;border-bottom:1px solid #edf1ee;position:relative;padding:8px 8px 8px 5px}
+.ride:hover{background:#f8fbf9}
+.ride.active{background:#eff8f2;border-radius:9px}
+.ride-checkbox{accent-color:#24735e;width:15px;height:15px;cursor:pointer;flex-shrink:0}
+.ride-color{height:27px;width:4px;flex-shrink:0;border-radius:3px}
+.ride-main{border:0;background:none;min-width:0;flex:1;text-align:left;padding:4px 0;color:#29473e}
+.ride-main strong{display:block;font-weight:700;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:6px}
+.ride-main small{display:block;color:#8b9e94;font-size:10px;white-space:nowrap}
+.no-results,.intro{font-size:12px;color:#81968d;padding:28px 5px}
+.sidebar-footer{padding:14px 24px 16px;background:#fff;box-shadow:0 -4px 18px #173f320b;display:flex;flex-wrap:wrap;gap:10px;flex-shrink:0}
+.sidebar-footer button{font-size:10px;border:none;background:transparent;color:#527d6e;font-weight:700;padding:3px 0}
+.sidebar-footer button:hover{text-decoration:underline}
+.sidebar-footer .danger{color:#ac6665;margin-left:auto}
+.privacy-label{width:100%;font-size:9px;color:#85a297;margin-top:5px}
+.privacy-label span{color:#67b492;font-size:10px;margin-right:4px}
+.main-map{position:relative;flex:1;min-width:0;background:#e9ede7}
+#map{position:absolute;inset:0;z-index:0}
+.map-toolbar{display:flex;align-items:center;justify-content:space-between;position:absolute;left:24px;right:24px;top:22px;z-index:800;pointer-events:none}
+.map-heading{background:white;border:1px solid #eaf0e9;box-shadow:0 4px 22px #213b3119;border-radius:12px;padding:13px 16px;display:flex;align-items:center;gap:9px;pointer-events:auto}
+.map-heading-marker{width:7px;height:7px;border-radius:50%;background:#51ab8a}
+.map-heading>span:nth-child(2){font-size:11px;color:#26493e;letter-spacing:1.2px;font-weight:800}
+.map-heading small{font-size:10px;color:#9aaea3;border-left:1px solid #e3ebe5;padding-left:9px}
+.button-zoom{pointer-events:auto;box-shadow:0 4px 22px #213b3119;background:white;color:#3b6455;font-size:11px;padding:13px 15px;border:1px solid #eaf0e9;margin-right:48px}
+.button-zoom span{font-size:16px;color:#648879}
+.detail{position:absolute;bottom:25px;left:25px;max-width:min(500px,calc(100% - 50px));min-width:280px;background:#fff;z-index:800;border-radius:14px;box-shadow:0 6px 28px #253e3129;padding:17px 20px;font-size:13px}
+.detail>strong{display:block;font-size:13px;margin-bottom:12px;color:#2a453b;overflow-wrap:anywhere}
+.detail-empty{font-size:11px;color:#9daea5}
+.detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 25px}
+.detail-grid div{display:flex;flex-direction:column;gap:3px}
+.detail-grid span{font-size:9px;color:#9bad9f}
+.detail-grid b{font-size:11px;color:#3a6454}
+.demo-watermark{position:absolute;bottom:5px;right:14px;color:#54746577;font-size:9px;font-weight:700;letter-spacing:1px;z-index:600;pointer-events:none}
+.drop-hint{position:fixed;inset:0;background:#0d413d8c;backdrop-filter:blur(3px);z-index:10000;display:none;place-items:center;pointer-events:none}
+.dragging>.drop-hint{display:grid}
+.drop-hint>div{background:white;border:3px dashed #4ea989;border-radius:22px;min-width:350px;max-width:80%;padding:55px 35px;text-align:center}
+.drop-hint b{display:block;color:#1f6251;font-size:22px}
+.drop-hint span{display:block;color:#91a89a;font-size:12px;margin-top:12px}
+.map-failure{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);background:white;border-radius:12px;padding:22px;max-width:360px;color:#9b5443;box-shadow:0 6px 25px #132b2914;z-index:2;font-size:13px}
+.help-dialog{border:none;border-radius:18px;max-width:530px;width:calc(100% - 32px);padding:25px 27px;box-shadow:0 10px 50px #103e3b38;color:#345648;line-height:1.9;font-size:13px}
+.help-dialog::backdrop{background:#071f1990}
+.dialog-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.dialog-header h2{margin:0;font-size:18px}
+.dialog-caption{font-size:11px;color:#8d6558}
+.sr-only{position:absolute;clip:rect(0,0,0,0);width:1px;height:1px;overflow:hidden;white-space:nowrap}
+@media(max-width:920px){.sidebar{width:345px;flex-basis:345px}.map-toolbar{left:12px;right:12px;top:12px}.map-heading small{display:none}.button-zoom{margin-right:45px}.detail{left:12px;bottom:12px}}
+@media(max-width:650px){.app-shell{height:100dvh;min-height:700px;display:flex;flex-direction:column}.sidebar{width:100%;flex-basis:45%;height:45%;box-shadow:none}.masthead{height:65px;padding:12px 18px}.sidebar-scroll{display:block}.welcome{padding:13px 20px 10px}.welcome h1{font-size:19px;line-height:1.3}.welcome h1 br{display:none}.welcome .eyebrow,.welcome>p:last-child{display:none}.upload-actions{padding:7px 20px}.message{padding:2px 20px 8px}.metrics{margin:1px 20px 15px;padding:10px}.metrics b{font-size:19px}.collection{padding:0 20px 15px}.sidebar-footer{padding:8px 20px 10px}.main-map{min-height:55%}.map-toolbar{top:7px}.map-heading{padding:8px 10px}.button-zoom{padding:9px;font-size:10px;margin-right:42px}.detail{bottom:17px;min-width:0;width:calc(100% - 24px);max-width:none;padding:10px}.detail-grid{grid-template-columns:repeat(3,1fr);gap:7px}.demo-watermark{display:none}}
+
+.demo-watermark[hidden]{display:none}
+
+/* The Street View shortcut intentionally sits above the map, but below the route toolbar. */
+.streetview-hint{position:absolute;z-index:710;left:24px;top:83px;max-width:calc(100% - 48px);padding:10px 14px;display:flex;align-items:center;gap:9px;border:1px solid #e3eae5;border-radius:11px;background:#fffffff2;color:#385c51;box-shadow:0 3px 16px #24403016;font-size:11px;pointer-events:auto}
+.streetview-hint-icon{font-size:16px;line-height:1;color:#26967d}
+.streetview-hint b{color:#135e50}
+.streetview-hint button{border:0;border-left:1px solid #dce8e1;background:none;color:#447f70;font-weight:700;font-size:11px;padding:2px 0 2px 10px}
+.streetview-hint button:hover{text-decoration:underline}
+.streetview-hint button[hidden]{display:none}
+.streetview-popup{min-width:230px;max-width:260px;color:#29483f}
+.streetview-popup-title{display:block;font-size:13px;font-weight:800;margin-bottom:6px}
+.streetview-popup-coords{font-size:11px;color:#6d857b;margin-bottom:12px;font-variant-numeric:tabular-nums}
+.streetview-popup a{display:block;text-decoration:none;text-align:center;border-radius:8px;padding:9px 10px;font-size:12px;font-weight:700}
+.streetview-popup-primary{background:#1c6256;color:white!important;margin-bottom:7px}
+.streetview-popup-primary:hover{background:#114d43}
+.streetview-popup-secondary{background:#ebf2ed;color:#276a58!important}
+.streetview-popup-note{font-size:10px;color:#789187;line-height:1.55;margin-top:10px}
+@media(max-width:650px){.streetview-hint{top:52px;left:10px;max-width:calc(100% - 20px);padding:8px 10px;font-size:10px;gap:6px}.streetview-hint button{font-size:10px}}
+
+/* Do not request OSMF tiles from file://: web-page requests must carry an HTTP Referer. */
+.protocol-warning{position:absolute;z-index:820;left:50%;top:50%;transform:translate(-50%,-50%);width:min(470px,calc(100% - 38px));background:#fffdf8;border:1px solid #e8c58f;border-left:5px solid #cd8335;border-radius:14px;box-shadow:0 12px 35px #233c2e38;padding:22px 24px;color:#5f4834;font-size:13px;line-height:1.7}
+.protocol-warning[hidden]{display:none}
+.protocol-warning strong{display:block;color:#684520;font-size:15px;margin-bottom:7px}
+.protocol-warning p{margin:8px 0 0}
+.protocol-warning p strong{display:inline;font-size:inherit;margin:0}
+.protocol-warning code{display:inline;overflow-wrap:anywhere;padding:1px 3px;border-radius:3px;background:#f8f1e6;color:#895a24}
+
+</style>
+  
+</head>
+<body>
+<div class="app-shell" id="dropzone">
+  <aside class="sidebar" aria-label="経路一覧">
+    <div class="masthead">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 42 42" fill="none"><circle cx="11" cy="30" r="7" stroke="currentColor" stroke-width="2.6"/><circle cx="31" cy="30" r="7" stroke="currentColor" stroke-width="2.6"/><path d="m11 30 8-16 12 16H17l-6-14h11" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><circle cx="19" cy="14" r="2.3" fill="currentColor"/></svg>
+      </div>
+      <div class="brand">
+        <strong>Route Atlas</strong>
+        <span>CYCLING GPS VIEWER</span>
+      </div>
+      <button id="help-button" class="icon-button" type="button" title="使い方・プライバシー" aria-label="使い方・プライバシー">?</button>
+    </div>
+    <div class="sidebar-scroll">
+      <section class="welcome">
+        <p class="eyebrow">YOUR RIDE COLLECTION</p>
+        <h1>走った道を、<br>ひとつの地図に。</h1>
+        <p>FIT / GPXファイルをまとめて読み込み、サイクリングの軌跡を自由に重ねて表示します。</p>
+      </section>
+      <div class="upload-actions">
+        <button class="button button-primary" id="upload-button" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5M4 16v4h16v-4"/></svg>
+          FIT / GPXを追加
+        </button>
+        <button class="button button-outline" id="folder-button" type="button" title="対応ブラウザではフォルダごと選択できます">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h7l2 2h9v11H3z"/></svg>
+          フォルダ
+        </button>
+        <input id="file-input" class="sr-only" type="file" accept=".fit,.gpx" multiple>
+        <input id="folder-input" class="sr-only" type="file" webkitdirectory multiple>
+      </div>
+      <progress id="import-progress" class="import-progress" max="100" value="0" hidden></progress>
+      <div id="message" class="message" role="status" aria-live="polite">架空のデモ経路を表示しています。</div>
+      <div class="metrics" aria-label="経路の集計">
+        <div><span>全経路</span><b id="stat-total">0</b><small>件</small></div>
+        <div><span>表示中</span><b id="stat-shown">0</b><small>件</small></div>
+        <div><span>表示分の合計距離</span><b id="stat-km">0</b><small>km</small></div>
+      </div>
+      <section class="collection">
+        <div class="section-heading"><h2>経路一覧</h2><span class="section-hint">選択して地図へ</span></div>
+        <label class="search-field">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.5"/><path d="m15.8 15.8 5 5"/></svg>
+          <input id="search" type="search" placeholder="経路名・ファイル名を検索" aria-label="経路を検索">
+        </label>
+        <div class="filters">
+          <label><span class="sr-only">年で絞り込み</span><select id="year-filter"><option value="">すべての年</option></select></label>
+          <label><span class="sr-only">形式で絞り込み</span><select id="format-filter"><option value="">すべての形式</option><option value="GPX">GPX</option><option value="FIT">FIT</option><option value="DEMO">デモ</option></select></label>
+        </div>
+        <div class="selection-actions">
+          <button id="show-all" type="button">表示を選択</button><span aria-hidden="true">/</span><button id="hide-all" type="button">表示を解除</button>
+          <small>※ 検索条件に一致する経路のみ</small>
+        </div>
+        <div id="intro" class="intro" hidden>まずはFITまたはGPXファイルを追加してください。</div>
+        <div id="ride-list" class="ride-list" aria-label="経路の選択"></div>
+      </section>
+    </div>
+    <div class="sidebar-footer">
+      <button id="demo-button" type="button">デモ経路</button>
+      <button id="export" type="button">GeoJSON出力</button>
+      <button id="clear-button" type="button" class="danger">データ削除</button>
+      <div class="privacy-label"><span aria-hidden="true">●</span> GPSファイルをサーバーにアップロードしません</div>
+    </div>
+  </aside>
+  <main class="main-map" aria-label="サイクリング経路の地図">
+    <div class="map-toolbar">
+      <div class="map-heading"><span class="map-heading-marker"></span><span>CYCLING ROUTES</span><small>経路の重ね合わせ</small></div>
+      <button id="zoom-all" type="button" class="button button-zoom">表示経路に合わせる <span aria-hidden="true">⌗</span></button>
+    </div>
+    <div class="streetview-hint" aria-label="ストリートビュー操作の案内">
+      <span class="streetview-hint-icon" aria-hidden="true">◉</span>
+      <span>地図をクリック → <b>ストリートビュー</b></span>
+      <button id="clear-streetview" type="button" hidden>地点を解除 ×</button>
+    </div>
+    <div id="map" aria-label="地図と走行経路" role="application"></div>
+    <section class="protocol-warning" id="protocol-warning" role="alert" hidden>
+      <strong>地図を表示するにはローカルサーバーが必要です</strong>
+      <p>このHTMLを直接開く <code>file://</code> 方式では、OpenStreetMapの地図タイルが403で拒否されます。</p>
+      <p>配布フォルダ内の <strong>run-local.cmd</strong> をダブルクリックし、<code>http://127.0.0.1:8000/</code> で開いてください。Pythonがない場合はREADMEを参照してください。</p>
+    </section>
+    <div class="detail" id="detail" aria-live="polite"><span class="detail-empty">一覧の経路名をクリックすると詳細を表示できます。</span></div>
+    <div class="demo-watermark">DEMO ROUTES ARE SYNTHETIC</div>
+  </main>
+  <div class="drop-hint" aria-hidden="true"><div><b>FIT・GPXファイルをドロップ</b><span>複数ファイルをまとめて追加できます</span></div></div>
+</div>
+<dialog id="help-dialog" class="help-dialog">
+  <div class="dialog-header"><h2>使い方とデータの取り扱い</h2><button type="button" id="close-help" class="icon-button" aria-label="閉じる">×</button></div>
+  <p>左側の「FIT / GPXを追加」またはドラッグ＆ドロップでファイルを読み込みます。経路のチェックで重ね合わせを切り替え、経路名を選ぶとその位置へ移動します。</p>
+  <p><strong>ストリートビュー：</strong> 地図の任意の地点、または表示中の経路をクリックすると、その地点の緯度・経度を示すマーカーとポップアップが開きます。「Googleストリートビューで開く」をクリックすると新しいタブでGoogleマップのストリートビューを表示します。見つからない地点では画像が表示されない、または近くの撮影地点へ移動する場合があります。ポップアップには通常のGoogleマップで地点を開くリンクもあります。</p>
+  <p><strong>GPSファイルはサーバーに送信されません。</strong> 読み込んだ経路は現在のブラウザのIndexedDBへ保存されます。ブラウザのデータ削除・プライベートモードなどでは消えることがあります。元のFIT/GPXファイルは保管してください。</p>
+  <p>地図画像はOpenStreetMapの地図タイルサーバーから取得するため、表示地域に対応するタイル座標などはその提供者に伝わります。ストリートビューのリンクを押すと、クリックした地点の座標がGoogleにURLとして送信されます（クリックしただけではGoogleへは送信しません）。</p>
+  <p>初期の7経路は画面確認用に合成した架空のデータです。実在する道路を正確にたどるものではありません。FIT解析は標準的な位置記録に対応した軽量実装です（特殊なFITファイルには未対応の場合があります）。</p>
+  <p class="dialog-caption">公開サイトには個人の走行ログを含めないでください。GeoJSON出力には個人の位置情報が含まれます。</p>
+</dialog>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+<script>
+/**
+ * Cycling Route Viewer - parsers and geometry utilities.
+ * GPX parsing uses the browser's DOMParser. FIT decoding supports standard
+ * FIT record messages (global message 20) containing position_lat/long.
+ * This intentionally does not implement the entire Garmin FIT profile.
+ */
+
+const METERS_PER_DEGREE = 111320;
+const FIT_EPOCH_MS = 631065600000;
+const RAD = Math.PI / 180;
+
+function haversineMeters(a, b) {
+  const dLat = (b.lat - a.lat) * RAD;
+  const dLon = (b.lon - a.lon) * RAD;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * RAD) * Math.cos(b.lat * RAD) * Math.sin(dLon / 2) ** 2;
+  return 6371008.8 * 2 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function lengthKm(segments) {
+  let meters = 0;
+  for (const seg of segments) {
+    for (let i = 1; i < seg.length; i++) {
+      const step = haversineMeters(seg[i - 1], seg[i]);
+      // Exclude implausible GPS jumps caused by reception loss.
+      if (step < 25000) meters += step;
+    }
+  }
+  return meters / 1000;
+}
+
+function simplify(segment, toleranceMeters = 40) {
+  if (segment.length <= 2) return segment;
+  const meanLat = segment.reduce((acc, p) => acc + p.lat, 0) / segment.length;
+  const cosine = Math.cos(meanLat * RAD);
+  const sqTol = toleranceMeters ** 2;
+  const keep = new Uint8Array(segment.length);
+  keep[0] = 1;
+  keep[segment.length - 1] = 1;
+  const stack = [[0, segment.length - 1]];
+  const xy = p => [p.lon * METERS_PER_DEGREE * cosine, p.lat * METERS_PER_DEGREE];
+  while (stack.length) {
+    const [start, end] = stack.pop();
+    const [x1, y1] = xy(segment[start]);
+    const [x2, y2] = xy(segment[end]);
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const d2 = dx * dx + dy * dy;
+    let best = -1;
+    let bestSq = sqTol;
+    for (let i = start + 1; i < end; i++) {
+      const [x, y] = xy(segment[i]);
+      const t = d2 ? Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / d2)) : 0;
+      const distanceSq = (x - (x1 + t * dx)) ** 2 + (y - (y1 + t * dy)) ** 2;
+      if (distanceSq > bestSq) { bestSq = distanceSq; best = i; }
+    }
+    if (best > -1) {
+      keep[best] = 1;
+      stack.push([start, best], [best, end]);
+    }
+  }
+  return segment.filter((_, i) => keep[i]);
+}
+
+function prepareRoute({ id, name, source, segments, date, isDemo = false }) {
+  const cleaned = segments.map(seg => seg.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && Math.abs(p.lat) <= 90 && Math.abs(p.lon) <= 180))
+    .filter(seg => seg.length >= 2);
+  if (!cleaned.length) throw new Error('有効なGPS座標が見つかりません');
+  const first = cleaned[0][0];
+  const lastSeg = cleaned[cleaned.length - 1];
+  const last = lastSeg[lastSeg.length - 1];
+  const firstTime = first.time || null;
+  const lastTime = last.time || null;
+  const seconds = firstTime && lastTime ? (new Date(lastTime) - new Date(firstTime)) / 1000 : null;
+  return {
+    id, name, source, isDemo, date: date || firstTime || null,
+    distanceKm: Math.round(lengthKm(cleaned) * 10) / 10,
+    elapsedSeconds: seconds > 0 && seconds < 60 * 60 * 24 * 14 ? Math.round(seconds) : null,
+    pointCount: cleaned.reduce((sum, seg) => sum + seg.length, 0),
+    segments: cleaned,
+    overview: cleaned.map(seg => simplify(seg, 60)),
+  };
+}
+
+function gpxChildren(el, localName) {
+  return Array.from(el.childNodes || []).filter(n => n.nodeType === 1 && n.localName === localName);
+}
+function gpxChildText(el, localName) {
+  const n = gpxChildren(el, localName)[0];
+  return n ? n.textContent.trim() : '';
+}
+function parsePoints(elements) {
+  return elements.map(el => {
+    const latText = el.getAttribute('lat');
+    const lonText = el.getAttribute('lon');
+    const lat = latText === null || latText.trim() === '' ? NaN : Number(latText);
+    const lon = lonText === null || lonText.trim() === '' ? NaN : Number(lonText);
+    const ele = gpxChildText(el, 'ele');
+    const time = gpxChildText(el, 'time');
+    return { lat, lon, ...(ele && Number.isFinite(Number(ele)) ? { ele: Number(ele) } : {}), ...(time && !Number.isNaN(Date.parse(time)) ? { time } : {}) };
+  }).filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+}
+
+function parseGpx(text, filename = 'activity.gpx') {
+  if (typeof DOMParser === 'undefined') throw new Error('GPXの解析にはブラウザが必要です');
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error('GPXのXML形式が不正です');
+  const root = doc.documentElement;
+  if (!root || root.localName !== 'gpx') throw new Error('GPXファイルではありません');
+  const tracks = Array.from(doc.getElementsByTagNameNS('*', 'trk'));
+  let segments = [];
+  let name = filename.replace(/\.gpx$/i, '');
+  if (tracks.length) {
+    const trackName = gpxChildText(tracks[0], 'name');
+    if (trackName) name = trackName;
+    for (const trk of tracks) {
+      for (const seg of Array.from(trk.getElementsByTagNameNS('*', 'trkseg'))) {
+        segments.push(parsePoints(Array.from(seg.getElementsByTagNameNS('*', 'trkpt'))));
+      }
+    }
+  } else {
+    const routes = Array.from(doc.getElementsByTagNameNS('*', 'rte'));
+    if (routes.length) {
+      const routeName = gpxChildText(routes[0], 'name');
+      if (routeName) name = routeName;
+      segments = routes.map(rte => parsePoints(Array.from(rte.getElementsByTagNameNS('*', 'rtept'))));
+    } else {
+      const waypoints = Array.from(doc.getElementsByTagNameNS('*', 'wpt'));
+      if (waypoints.length > 1) segments = [parsePoints(waypoints)];
+    }
+  }
+  const metadata = Array.from(doc.getElementsByTagNameNS('*', 'metadata'))[0];
+  const date = metadata ? gpxChildText(metadata, 'time') : '';
+  return { name, source: 'GPX', segments, date: date || null };
+}
+
+function byteWidth(baseType) {
+  switch (baseType & 0x1f) {
+    case 3: case 4: case 11: return 2;
+    case 5: case 6: case 8: case 12: return 4;
+    case 9: case 14: case 15: case 16: return 8;
+    default: return 1;
+  }
+}
+
+function readFitValue(view, at, size, type, little) {
+  if (size < byteWidth(type)) return null;
+  const b = type & 0x1f;
+  let value;
+  switch (b) {
+    case 0: case 2: case 10: case 13: value = view.getUint8(at); break;
+    case 1: value = view.getInt8(at); break;
+    case 3: value = view.getInt16(at, little); break;
+    case 4: case 11: value = view.getUint16(at, little); break;
+    case 5: value = view.getInt32(at, little); break;
+    case 6: case 12: value = view.getUint32(at, little); break;
+    case 8: value = view.getFloat32(at, little); break;
+    case 9: value = view.getFloat64(at, little); break;
+    default: return null;
+  }
+  if ((b === 5 && value === 0x7fffffff) || (b === 6 && value === 0xffffffff) ||
+      (b === 4 && value === 0xffff) || (b === 3 && value === 0x7fff) ||
+      (b === 2 && value === 0xff) || (b === 1 && value === 0x7f)) return null;
+  return Number.isFinite(value) ? value : null;
+}
+
+/** Decode common FIT tracks, including compressed-timestamp record headers. */
+function parseFit(arrayBuffer, filename = 'activity.fit') {
+  const bytes = new Uint8Array(arrayBuffer);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (bytes.length < 14 || String.fromCharCode(...bytes.slice(8, 12)) !== '.FIT') {
+    throw new Error('FITヘッダーが不正です');
+  }
+  const headerSize = bytes[0];
+  if (headerSize !== 12 && headerSize !== 14) throw new Error('対応していないFITヘッダーです');
+  const dataLength = view.getUint32(4, true);
+  const end = headerSize + dataLength;
+  if (end > bytes.length - 2) throw new Error('FITのデータ長が不正です');
+  const defs = new Map();
+  const points = [];
+  let createdAt = null;
+  let lastTimestamp = null;
+  let pos = headerSize;
+  while (pos < end) {
+    const header = bytes[pos++];
+    const compressed = (header & 0x80) !== 0;
+    const definition = !compressed && (header & 0x40) !== 0;
+    const local = compressed ? (header >> 5) & 0x03 : header & 0x0f;
+    if (definition) {
+      const hasDeveloperFields = (header & 0x20) !== 0;
+      if (pos + 5 > end) throw new Error('FITの定義が途中で切れています');
+      pos += 1; // reserved
+      const little = bytes[pos++] === 0;
+      const global = view.getUint16(pos, little); pos += 2;
+      const numFields = bytes[pos++];
+      if (pos + numFields * 3 > end) throw new Error('FITのフィールド定義が不正です');
+      const fields = [];
+      for (let j = 0; j < numFields; j++) {
+        fields.push({ number: bytes[pos], size: bytes[pos + 1], type: bytes[pos + 2] });
+        pos += 3;
+      }
+      const developerFields = [];
+      if (hasDeveloperFields) {
+        if (pos >= end) throw new Error('FITの開発者定義が不正です');
+        const numDev = bytes[pos++];
+        if (pos + numDev * 3 > end) throw new Error('FITの開発者フィールドが不正です');
+        for (let j = 0; j < numDev; j++) {
+          developerFields.push({ size: bytes[pos + 1] });
+          pos += 3;
+        }
+      }
+      defs.set(local, { global, little, fields, developerFields });
+      continue;
+    }
+    const def = defs.get(local);
+    if (!def) throw new Error('FITのメッセージ定義がありません');
+    const values = {};
+    for (const field of def.fields) {
+      // A compressed-timestamp record does not carry timestamp field 253
+      // in the payload, even if the active message definition lists it.
+      if (compressed && field.number === 253) continue;
+      if (pos + field.size > end) throw new Error('FITのレコードが途中で切れています');
+      if ((def.global === 20 && [0, 1, 2, 78].includes(field.number)) ||
+          field.number === 253 || (def.global === 0 && field.number === 4)) {
+        values[field.number] = readFitValue(view, pos, field.size, field.type, def.little);
+      }
+      pos += field.size;
+    }
+    for (const dev of def.developerFields) {
+      if (pos + dev.size > end) throw new Error('FITの開発者レコードが途中で切れています');
+      pos += dev.size;
+    }
+    // Compressed timestamp headers store five low bits of the next timestamp.
+    // The previous complete timestamp provides the higher bits.
+    if (compressed && lastTimestamp != null && values[253] == null) {
+      const offset = header & 0x1f;
+      let timestamp = (lastTimestamp - lastTimestamp % 32) + offset;
+      if (timestamp < lastTimestamp) timestamp += 32;
+      values[253] = timestamp;
+    }
+    if (values[253] != null) lastTimestamp = values[253];
+    if (def.global === 0 && values[4] != null) {
+      createdAt = new Date(FIT_EPOCH_MS + values[4] * 1000).toISOString();
+    }
+    if (def.global === 20 && values[0] != null && values[1] != null) {
+      const lat = values[0] * 180 / 2147483648;
+      const lon = values[1] * 180 / 2147483648;
+      if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
+        const point = { lat, lon };
+        const altitude = values[78] ?? values[2];
+        if (altitude != null) point.ele = altitude / 5 - 500;
+        if (values[253] != null) point.time = new Date(FIT_EPOCH_MS + values[253] * 1000).toISOString();
+        points.push(point);
+      }
+    }
+  }
+  return { name: filename.replace(/\.fit$/i, ''), source: 'FIT', segments: [points], date: points[0]?.time || createdAt };
+}
+
+
+/** Official Maps URL scheme: no Google Maps JavaScript API key required. */
+function validateCoordinates(lat, lng) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    throw new RangeError('緯度または経度が不正です');
+  }
+}
+
+function streetViewUrl(lat, lng) {
+  validateCoordinates(lat, lng);
+  const url = new URL('https://www.google.com/maps/@');
+  url.searchParams.set('api', '1');
+  url.searchParams.set('map_action', 'pano');
+  url.searchParams.set('viewpoint', `${lat.toFixed(6)},${lng.toFixed(6)}`);
+  return url.toString();
+}
+
+function googleMapsPointUrl(lat, lng) {
+  validateCoordinates(lat, lng);
+  const url = new URL('https://www.google.com/maps/search/');
+  url.searchParams.set('api', '1');
+  url.searchParams.set('query', `${lat.toFixed(6)},${lng.toFixed(6)}`);
+  return url.toString();
+}
+
+
+
+
+const $ = id => document.getElementById(id);
+const refs = {
+  list: $('ride-list'), search: $('search'), year: $('year-filter'), format: $('format-filter'),
+  total: $('stat-total'), shown: $('stat-shown'), km: $('stat-km'), message: $('message'),
+  progress: $('import-progress'), detail: $('detail'), file: $('file-input'), folder: $('folder-input'),
+  intro: $('intro'), map: $('map'), showAll: $('show-all'), hideAll: $('hide-all'), export: $('export'),
+};
+const COLORS = ['#e86146', '#3d9e95', '#6379d1', '#af76b6', '#d19b3f', '#4691c8', '#7eaa67', '#bc6588'];
+const state = { routes: [], selected: new Set(), active: null, query: '', year: '', format: '' };
+let map;
+let layerGroup;
+let renderer;
+let streetViewMarker = null;
+let database = null;
+
+function status(message, kind = '') {
+  refs.message.textContent = message;
+  refs.message.dataset.kind = kind;
+}
+function formatDate(date) {
+  if (!date) return '日付不明';
+  const d = new Date(date);
+  return Number.isNaN(d.getTime()) ? '日付不明' : d.toLocaleDateString('ja-JP', {year:'numeric',month:'2-digit',day:'2-digit'});
+}
+function formatDuration(seconds) {
+  if (!seconds) return '記録なし';
+  const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60);
+  return h > 0 ? `${h}時間${m}分` : `${m}分`;
+}
+function colorFor(route) {
+  const i = state.routes.findIndex(r => r.id === route.id);
+  return COLORS[(i < 0 ? 0 : i) % COLORS.length];
+}
+function filteredRoutes() {
+  return state.routes.filter(r => {
+    if (state.query && !r.name.toLocaleLowerCase().includes(state.query)) return false;
+    if (state.year && !(r.date && new Date(r.date).getFullYear().toString() === state.year)) return false;
+    if (state.format && r.source !== state.format) return false;
+    return true;
+  });
+}
+function ensureMap() {
+  if (!window.L) {
+    refs.map.innerHTML = '<div class="map-failure">地図ライブラリを読み込めませんでした。ネットワーク接続を確認して再読込してください。</div>';
+    status('Leafletを読み込めませんでした。ネット接続をご確認ください。', 'error');
+    return false;
+  }
+  map = L.map('map', { preferCanvas: true, zoomControl: false }).setView([32.80, 129.92], 10);
+  L.control.zoom({ position: 'topright' }).addTo(map);
+  // The OSMF tile policy requires an HTTP Referer for web pages. Browsers do not
+  // send one from file://, so do not make non-compliant requests from local HTML.
+  if (window.location.protocol === 'file:') {
+    const warning = $('protocol-warning');
+    if (warning) warning.hidden = false;
+  } else {
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+      referrerPolicy: 'strict-origin-when-cross-origin',
+      maxZoom: 19,
+    }).addTo(map);
+  }
+  renderer = L.canvas({ padding: 0.2 });
+  layerGroup = L.layerGroup().addTo(map);
+  map.on('click', event => showStreetViewAt(event.latlng));
+  return true;
+}
+
+/** Creates a local popup; the external URL is used only after the user clicks its link. */
+function showStreetViewAt(latlng) {
+  if (!map) return;
+  const lat = latlng.lat;
+  const lng = latlng.lng;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+  const content = document.createElement('div');
+  content.className = 'streetview-popup';
+  const heading = document.createElement('strong');
+  heading.className = 'streetview-popup-title';
+  heading.textContent = 'この地点をストリートビューで確認';
+  const coords = document.createElement('div');
+  coords.className = 'streetview-popup-coords';
+  coords.textContent = `緯度 ${lat.toFixed(6)} / 経度 ${lng.toFixed(6)}`;
+
+  const sv = document.createElement('a');
+  sv.className = 'streetview-popup-primary';
+  sv.textContent = 'Googleストリートビューで開く ↗';
+  sv.href = streetViewUrl(lat, lng);
+  sv.target = '_blank';
+  sv.rel = 'noopener noreferrer';
+
+  const maps = document.createElement('a');
+  maps.className = 'streetview-popup-secondary';
+  maps.textContent = 'Googleマップで地点を見る ↗';
+  maps.href = googleMapsPointUrl(lat, lng);
+  maps.target = '_blank';
+  maps.rel = 'noopener noreferrer';
+
+  const note = document.createElement('div');
+  note.className = 'streetview-popup-note';
+  note.textContent = '撮影画像がない場所では開けない場合があります。Googleにはリンクを押したときだけ座標が送られます。';
+  content.append(heading, coords, sv, maps, note);
+
+  if (streetViewMarker) {
+    streetViewMarker.setLatLng(latlng);
+  } else {
+    streetViewMarker = L.circleMarker(latlng, {
+      radius: 8, color: '#ffffff', weight: 2.5, fillColor: '#e66a43', fillOpacity: 1,
+      bubblingMouseEvents: false,
+    }).addTo(map);
+    streetViewMarker.on('click', () => streetViewMarker.openPopup());
+  }
+  streetViewMarker.bindPopup(content, { maxWidth: 295, closeButton: true }).openPopup();
+  $('clear-streetview').hidden = false;
+}
+
+function clearStreetView() {
+  if (streetViewMarker && map) map.removeLayer(streetViewMarker);
+  streetViewMarker = null;
+  $('clear-streetview').hidden = true;
+}
+function updateMap() {
+  if (!map) return;
+  layerGroup.clearLayers();
+  for (const route of state.routes) {
+    if (!state.selected.has(route.id)) continue;
+    const color = colorFor(route);
+    for (const segment of (route.id === state.active ? route.segments : route.overview)) {
+      if (segment.length < 2) continue;
+      const line = L.polyline(segment.map(p => [p.lat, p.lon]), {
+        renderer, color, weight: route.id === state.active ? 5 : 3.2,
+        opacity: route.id === state.active ? 0.96 : 0.75,
+        lineCap:'round', lineJoin:'round', interactive:true, bubblingMouseEvents:false,
+      }).addTo(layerGroup);
+      line.on('click', event => { focusRoute(route.id); showStreetViewAt(event.latlng); });
+      line.bindTooltip(route.name, { sticky: true, direction: 'top' });
+    }
+  }
+}
+function zoomTo(routes) {
+  if (!map || !routes.length) return;
+  const coords = [];
+  for (const route of routes) for (const segment of route.overview) {
+    for (const p of segment) coords.push([p.lat, p.lon]);
+  }
+  if (coords.length > 1) map.fitBounds(L.latLngBounds(coords), { padding: [35, 35], maxZoom: 14 });
+}
+function focusRoute(id) {
+  const route = state.routes.find(r => r.id === id);
+  if (!route) return;
+  state.active = id;
+  state.selected.add(id);
+  render();
+  zoomTo([route]);
+}
+function updateYearOptions() {
+  const years = [...new Set(state.routes.filter(r=>r.date).map(r=>new Date(r.date).getFullYear()).filter(Number.isFinite))].sort((a,b)=>b-a);
+  refs.year.replaceChildren();
+  refs.year.add(new Option('すべての年', ''));
+  for (const year of years) refs.year.add(new Option(String(year), String(year)));
+  if (years.map(String).includes(state.year)) refs.year.value = state.year;
+  else { state.year = ''; refs.year.value = ''; }
+}
+function renderList() {
+  refs.list.replaceChildren();
+  const routes = filteredRoutes();
+  refs.intro.hidden = state.routes.length > 0;
+  if (!routes.length && state.routes.length) {
+    const none = document.createElement('div');
+    none.className = 'no-results'; none.textContent = '条件に合う経路がありません。';
+    refs.list.appendChild(none);
+    return;
+  }
+  const fragment = document.createDocumentFragment();
+  routes.forEach(route => {
+    const entry = document.createElement('div');
+    entry.className = `ride ${route.id === state.active ? 'active' : ''}`;
+    const box = document.createElement('input');
+    box.type = 'checkbox'; box.className = 'ride-checkbox';
+    box.checked = state.selected.has(route.id);
+    box.setAttribute('aria-label', `${route.name} を表示`);
+    box.addEventListener('change', () => {
+      if (box.checked) state.selected.add(route.id);
+      else state.selected.delete(route.id);
+      if (!box.checked && state.active === route.id) state.active = null;
+      render();
+    });
+    const bar = document.createElement('span'); bar.className = 'ride-color';
+    bar.style.backgroundColor = colorFor(route);
+    const main = document.createElement('button');
+    main.type = 'button'; main.className = 'ride-main';
+    main.title = '地図上のこの経路に移動';
+    const name = document.createElement('strong'); name.textContent = route.name;
+    const meta = document.createElement('small');
+    meta.textContent = `${formatDate(route.date)}   ·   ${route.distanceKm.toFixed(1)} km   ·   ${route.source}`;
+    main.append(name, meta);
+    main.addEventListener('click', () => focusRoute(route.id));
+    entry.append(box, bar, main);
+    fragment.append(entry);
+  });
+  refs.list.appendChild(fragment);
+}
+function renderDetail() {
+  const route = state.routes.find(r => r.id === state.active);
+  if (!route) {
+    refs.detail.innerHTML = '<span class="detail-empty">一覧の経路名をクリックすると詳細を表示できます。</span>';
+    return;
+  }
+  refs.detail.replaceChildren();
+  const title = document.createElement('strong'); title.textContent = route.name;
+  const specs = document.createElement('div'); specs.className = 'detail-grid';
+  for (const [label, value] of [
+    ['走行日', formatDate(route.date)], ['距離', `${route.distanceKm.toFixed(1)} km`],
+    ['経過時間', formatDuration(route.elapsedSeconds)], ['GPS点数', route.pointCount.toLocaleString('ja-JP')],
+    ['形式', route.source], ['種類', route.isDemo ? '架空のサンプル' : 'ローカルファイル'],
+  ]) {
+    const cell = document.createElement('div');
+    const k = document.createElement('span'); k.textContent = label;
+    const v = document.createElement('b'); v.textContent = value;
+    cell.append(k,v); specs.append(cell);
+  }
+  refs.detail.append(title, specs);
+}
+function renderStats() {
+  refs.total.textContent = state.routes.length.toLocaleString('ja-JP');
+  refs.shown.textContent = state.selected.size.toLocaleString('ja-JP');
+  const km = state.routes.filter(r => state.selected.has(r.id)).reduce((sum,r)=>sum+r.distanceKm,0);
+  refs.km.textContent = km.toLocaleString('ja-JP',{maximumFractionDigits:1});
+}
+function render() {
+  renderStats(); renderList(); renderDetail(); updateMap();
+  const mark = document.querySelector('.demo-watermark');
+  if (mark) mark.hidden = !state.routes.some(r => r.isDemo && state.selected.has(r.id));
+}
+
+function setupListeners() {
+  $('upload-button').addEventListener('click', () => refs.file.click());
+  $('folder-button').addEventListener('click', () => refs.folder.click());
+  refs.file.addEventListener('change', async () => { await importFiles(refs.file.files); refs.file.value = ''; });
+  refs.folder.addEventListener('change', async () => { await importFiles(refs.folder.files); refs.folder.value = ''; });
+  refs.search.addEventListener('input', e => { state.query = e.target.value.trim().toLocaleLowerCase(); renderList(); });
+  refs.year.addEventListener('change', e => { state.year = e.target.value; renderList(); });
+  refs.format.addEventListener('change', e => { state.format = e.target.value; renderList(); });
+  refs.showAll.addEventListener('click', () => {
+    for (const r of filteredRoutes()) state.selected.add(r.id);
+    render(); zoomTo(state.routes.filter(r => state.selected.has(r.id)));
+  });
+  refs.hideAll.addEventListener('click', () => { for (const r of filteredRoutes()) state.selected.delete(r.id); state.active = null; render(); });
+  $('zoom-all').addEventListener('click', () => zoomTo(state.routes.filter(r => state.selected.has(r.id))));
+  $('clear-streetview').addEventListener('click', clearStreetView);
+  $('demo-button').addEventListener('click', loadDemo);
+  $('clear-button').addEventListener('click', clearRoutes);
+  refs.export.addEventListener('click', exportSelected);
+  $('help-button').addEventListener('click', () => $('help-dialog').showModal());
+  $('close-help').addEventListener('click', () => $('help-dialog').close());
+  const drop = $('dropzone');
+  for (const evt of ['dragenter','dragover']) drop.addEventListener(evt, e=>{ e.preventDefault(); drop.classList.add('dragging'); });
+  for (const evt of ['dragleave','drop']) drop.addEventListener(evt, e=>{ e.preventDefault(); drop.classList.remove('dragging'); });
+  drop.addEventListener('drop', e => importFiles(e.dataTransfer.files));
+  window.addEventListener('resize', () => map?.invalidateSize());
+}
+
+function sampleSegment(waypoints, index) {
+  const points = [];
+  for (let leg = 0; leg < waypoints.length - 1; leg++) {
+    const [lat1, lon1] = waypoints[leg], [lat2, lon2] = waypoints[leg + 1];
+    const steps = 21;
+    for (let i = 0; i < steps; i++) {
+      const t = i / steps;
+      const wiggle = Math.sin(t * Math.PI) * Math.sin(t * 3 * Math.PI + index * 1.9) * 0.0013;
+      const date = new Date(Date.UTC(2026, 8, 5 + index, 0, 0, 0) + (leg * steps + i) * 60000);
+      points.push({lat:lat1+(lat2-lat1)*t+wiggle,lon:lon1+(lon2-lon1)*t+wiggle,time:date.toISOString()});
+    }
+  }
+  const [lastLat, lastLon] = waypoints[waypoints.length - 1];
+  points.push({lat:lastLat,lon:lastLon});
+  return points;
+}
+function demoRoutes() {
+  // Synthetic routes for UI demonstration only, not real road data.
+  const examples = [
+    ['デモ：長崎市内ループ',[[32.744,129.874],[32.765,129.894],[32.790,129.871],[32.777,129.839],[32.749,129.849],[32.744,129.874]]],
+    ['デモ：大村湾方面',[[32.744,129.874],[32.833,129.912],[32.911,129.952],[32.941,129.952],[32.911,129.952],[32.833,129.912],[32.744,129.874]]],
+    ['デモ：諫早方面',[[32.756,129.878],[32.790,129.959],[32.840,130.014],[32.844,130.054],[32.810,130.005],[32.756,129.878]]],
+    ['デモ：西彼杵半島',[[32.753,129.851],[32.793,129.797],[32.858,129.747],[32.925,129.723],[32.889,129.749],[32.813,129.802],[32.753,129.851]]],
+    ['デモ：野母崎方面',[[32.744,129.874],[32.697,129.864],[32.641,129.829],[32.591,129.795],[32.622,129.805],[32.697,129.864],[32.744,129.874]]],
+    ['デモ：島原半島',[[32.843,130.048],[32.771,130.119],[32.743,130.216],[32.785,130.333],[32.870,130.311],[32.887,130.185],[32.843,130.048]]],
+    ['デモ：佐世保方面',[[32.912,129.963],[33.005,129.924],[33.105,129.797],[33.159,129.721],[33.125,129.774],[33.005,129.924],[32.912,129.963]]],
+  ];
+  return examples.map(([name, points], index) => prepareRoute({
+    id:`demo-${index}`, name, source:'DEMO', segments:[sampleSegment(points,index)], isDemo:true,
+    date:new Date(Date.UTC(2026,8,5+index)).toISOString(),
+  }));
+}
+function loadDemo() {
+  const exists = new Set(state.routes.map(r => r.id));
+  const examples = demoRoutes().filter(r=>!exists.has(r.id));
+  state.routes.push(...examples);
+  for (const r of examples) state.selected.add(r.id);
+  if (examples.length) state.active = examples[0].id;
+  updateYearOptions(); render();
+  zoomTo(state.routes.filter(r => state.selected.has(r.id)));
+  status(examples.length ? `${examples.length}件の架空デモ経路を追加しました（保存しません）。` : 'デモ経路は追加済みです。');
+}
+
+async function openDatabase() {
+  if (!('indexedDB' in window)) throw new Error('IndexedDBを利用できません');
+  return await new Promise((resolve,reject)=>{
+    const req = indexedDB.open('cycling-route-viewer', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('routes', { keyPath: 'id' });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function transactionPromise(tx) {
+  return new Promise((resolve,reject)=>{ tx.oncomplete=()=>resolve(); tx.onerror=()=>reject(tx.error); tx.onabort=()=>reject(tx.error); });
+}
+async function loadSavedRoutes() {
+  if (!database) return [];
+  const tx = database.transaction('routes', 'readonly');
+  const req = tx.objectStore('routes').getAll();
+  const results = await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+  return results;
+}
+async function saveRoutes(routes) {
+  if (!database || !routes.length) return;
+  const tx = database.transaction('routes', 'readwrite');
+  for (const r of routes) tx.objectStore('routes').put(r);
+  await transactionPromise(tx);
+}
+
+async function importFiles(fileList) {
+  const files = Array.from(fileList || []).filter(f=>/\.(gpx|fit)$/i.test(f.name));
+  if (!files.length) { status('FIT / GPXファイルが選択されていません。', 'error'); return; }
+  refs.progress.hidden = false;
+  const existing = new Set(state.routes.map(r=>r.id));
+  const pending = [];
+  const errors = [];
+  for (let i=0; i<files.length; i++) {
+    const file = files[i];
+    refs.progress.value = (i+1)/files.length*100;
+    status(`ファイルを解析しています… ${i+1} / ${files.length}`);
+    // Give the browser opportunities to repaint for large batches.
+    if (i % 8 === 0) await new Promise(resolve=>setTimeout(resolve,0));
+    const id = `file:${file.webkitRelativePath || file.name}:${file.size}:${file.lastModified}`;
+    if (existing.has(id)) continue;
+    try {
+      const payload = /\.gpx$/i.test(file.name) ? parseGpx(await file.text(), file.name) : parseFit(await file.arrayBuffer(), file.name);
+      const route = prepareRoute({id,...payload});
+      pending.push(route);
+      existing.add(id);
+    } catch (e) { errors.push(`${file.name}: ${e.message || String(e)}`); }
+  }
+  let saveError = null;
+  if (pending.length) {
+    // Remove synthetic routes on first real import, avoiding accidental demo mixing.
+    const old = state.routes.filter(r=>r.isDemo);
+    for (const r of old) state.selected.delete(r.id);
+    state.routes = state.routes.filter(r=>!r.isDemo);
+    state.routes.push(...pending);
+    state.routes.sort((a,b)=>new Date(b.date || 0)-new Date(a.date || 0));
+    for (const r of pending) state.selected.add(r.id);
+    state.active = pending[0].id;
+    try { await saveRoutes(pending); }
+    catch (e) { saveError = e.message || String(e); }
+  }
+  refs.progress.hidden = true;
+  updateYearOptions(); render();
+  if (pending.length) zoomTo(pending.length < 10 ? pending : state.routes.filter(r => state.selected.has(r.id)));
+  const message = `${pending.length}件を追加。${files.length - pending.length - errors.length}件を重複として省略。${errors.length}件は読込失敗。`;
+  status(`${message}${saveError ? ' 保存失敗: ' + saveError : ''}${errors.length ? ' 例: ' + errors.slice(0,2).join(' / ') : ''}`, (errors.length || saveError) ? 'warning' : 'success');
+}
+
+async function clearRoutes() {
+  if (!window.confirm('このブラウザに保存したGPSログと現在の一覧を全て削除しますか？\n元のFIT/GPXファイルは削除されません。')) return;
+  if (database) {
+    try { const tx=database.transaction('routes','readwrite'); tx.objectStore('routes').clear(); await transactionPromise(tx); }
+    catch(e) { status(`保存データを削除できませんでした: ${e.message}`,'error'); return; }
+  }
+  state.routes=[]; state.selected.clear(); state.active=null;
+  updateYearOptions(); render();
+  status('保存された経路を削除しました。元のファイルは変更していません。');
+}
+
+function exportSelected() {
+  const selected = state.routes.filter(r=>state.selected.has(r.id));
+  if (!selected.length) { status('エクスポートする経路を選択してください。','warning'); return; }
+  const geojson = {
+    type:'FeatureCollection',
+    features:selected.map(r=>({type:'Feature', properties:{name:r.name,date:r.date,format:r.source,distance_km:r.distanceKm},
+      geometry:{type:'MultiLineString',coordinates:r.segments.map(seg=>seg.map(p=>[p.lon,p.lat,...(Number.isFinite(p.ele)?[p.ele]:[])]))}})),
+  };
+  const url=URL.createObjectURL(new Blob([JSON.stringify(geojson)],{type:'application/geo+json'}));
+  const a=document.createElement('a'); a.href=url; a.download='cycling-routes.geojson';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  status(`${selected.length}経路をGeoJSONとして出力しました。`,'success');
+}
+
+async function init() {
+  ensureMap(); setupListeners();
+  try { database = await openDatabase(); state.routes = await loadSavedRoutes(); }
+  catch(e) { status('ブラウザ保存を利用できません。経路はこのページを閉じると消える場合があります。','warning'); }
+  if (state.routes.length) {
+    state.routes.sort((a,b)=>new Date(b.date || 0)-new Date(a.date || 0));
+    state.selected = new Set(state.routes.map(r=>r.id));
+    updateYearOptions(); render(); zoomTo(state.routes);
+    status(`${state.routes.length}件の保存済みログを読み込みました。`,'success');
+  } else { loadDemo(); }
+}
+init();
+
+</script>
+</body>
+</html>

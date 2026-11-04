@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="FIT / GPXのサイクリング経路をローカルで重ねて閲覧できるWebアプリ。">
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Cycling Route Viewer — GPS走行ログの地図ビューア</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+  <script defer type="module" src="src/app.js"></script>
+</head>
+<body>
+<div class="app-shell" id="dropzone">
+  <aside class="sidebar" aria-label="経路一覧">
+    <div class="masthead">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 42 42" fill="none"><circle cx="11" cy="30" r="7" stroke="currentColor" stroke-width="2.6"/><circle cx="31" cy="30" r="7" stroke="currentColor" stroke-width="2.6"/><path d="m11 30 8-16 12 16H17l-6-14h11" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><circle cx="19" cy="14" r="2.3" fill="currentColor"/></svg>
+      </div>
+      <div class="brand">
+        <strong>Route Atlas</strong>
+        <span>CYCLING GPS VIEWER</span>
+      </div>
+      <button id="help-button" class="icon-button" type="button" title="使い方・プライバシー" aria-label="使い方・プライバシー">?</button>
+    </div>
+    <div class="sidebar-scroll">
+      <section class="welcome">
+        <p class="eyebrow">YOUR RIDE COLLECTION</p>
+        <h1>走った道を、<br>ひとつの地図に。</h1>
+        <p>FIT / GPXファイルをまとめて読み込み、サイクリングの軌跡を自由に重ねて表示します。</p>
+      </section>
+      <div class="upload-actions">
+        <button class="button button-primary" id="upload-button" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7 9m5-5 5 5M4 16v4h16v-4"/></svg>
+          FIT / GPXを追加
+        </button>
+        <button class="button button-outline" id="folder-button" type="button" title="対応ブラウザではフォルダごと選択できます">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h7l2 2h9v11H3z"/></svg>
+          フォルダ
+        </button>
+        <input id="file-input" class="sr-only" type="file" accept=".fit,.gpx" multiple>
+        <input id="folder-input" class="sr-only" type="file" webkitdirectory multiple>
+      </div>
+      <progress id="import-progress" class="import-progress" max="100" value="0" hidden></progress>
+      <div id="message" class="message" role="status" aria-live="polite">架空のデモ経路を表示しています。</div>
+      <div class="metrics" aria-label="経路の集計">
+        <div><span>全経路</span><b id="stat-total">0</b><small>件</small></div>
+        <div><span>表示中</span><b id="stat-shown">0</b><small>件</small></div>
+        <div><span>表示分の合計距離</span><b id="stat-km">0</b><small>km</small></div>
+      </div>
+      <section class="collection">
+        <div class="section-heading"><h2>経路一覧</h2><span class="section-hint">選択して地図へ</span></div>
+        <label class="search-field">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.5"/><path d="m15.8 15.8 5 5"/></svg>
+          <input id="search" type="search" placeholder="経路名・ファイル名を検索" aria-label="経路を検索">
+        </label>
+        <div class="filters">
+          <label><span class="sr-only">年で絞り込み</span><select id="year-filter"><option value="">すべての年</option></select></label>
+          <label><span class="sr-only">形式で絞り込み</span><select id="format-filter"><option value="">すべての形式</option><option value="GPX">GPX</option><option value="FIT">FIT</option><option value="DEMO">デモ</option></select></label>
+        </div>
+        <div class="selection-actions">
+          <button id="show-all" type="button">表示を選択</button><span aria-hidden="true">/</span><button id="hide-all" type="button">表示を解除</button>
+          <small>※ 検索条件に一致する経路のみ</small>
+        </div>
+        <div id="intro" class="intro" hidden>まずはFITまたはGPXファイルを追加してください。</div>
+        <div id="ride-list" class="ride-list" aria-label="経路の選択"></div>
+      </section>
+    </div>
+    <div class="sidebar-footer">
+      <button id="demo-button" type="button">デモ経路</button>
+      <button id="export" type="button">GeoJSON出力</button>
+      <button id="clear-button" type="button" class="danger">データ削除</button>
+      <div class="privacy-label"><span aria-hidden="true">●</span> GPSファイルをサーバーにアップロードしません</div>
+    </div>
+  </aside>
+  <main class="main-map" aria-label="サイクリング経路の地図">
+    <div class="map-toolbar">
+      <div class="map-heading"><span class="map-heading-marker"></span><span>CYCLING ROUTES</span><small>経路の重ね合わせ</small></div>
+      <button id="zoom-all" type="button" class="button button-zoom">表示経路に合わせる <span aria-hidden="true">⌗</span></button>
+    </div>
+    <div class="streetview-hint" aria-label="ストリートビュー操作の案内">
+      <span class="streetview-hint-icon" aria-hidden="true">◉</span>
+      <span>地図をクリック → <b>ストリートビュー</b></span>
+      <button id="clear-streetview" type="button" hidden>地点を解除 ×</button>
+    </div>
+    <div id="map" aria-label="地図と走行経路" role="application"></div>
+    <section class="protocol-warning" id="protocol-warning" role="alert" hidden>
+      <strong>地図を表示するにはローカルサーバーが必要です</strong>
+      <p>このHTMLを直接開く <code>file://</code> 方式では、OpenStreetMapの地図タイルが403で拒否されます。</p>
+      <p>配布フォルダ内の <strong>run-local.cmd</strong> をダブルクリックし、<code>http://127.0.0.1:8000/</code> で開いてください。Pythonがない場合はREADMEを参照してください。</p>
+    </section>
+    <div class="detail" id="detail" aria-live="polite"><span class="detail-empty">一覧の経路名をクリックすると詳細を表示できます。</span></div>
+    <div class="demo-watermark">DEMO ROUTES ARE SYNTHETIC</div>
+  </main>
+  <div class="drop-hint" aria-hidden="true"><div><b>FIT・GPXファイルをドロップ</b><span>複数ファイルをまとめて追加できます</span></div></div>
+</div>
+<dialog id="help-dialog" class="help-dialog">
+  <div class="dialog-header"><h2>使い方とデータの取り扱い</h2><button type="button" id="close-help" class="icon-button" aria-label="閉じる">×</button></div>
+  <p>左側の「FIT / GPXを追加」またはドラッグ＆ドロップでファイルを読み込みます。経路のチェックで重ね合わせを切り替え、経路名を選ぶとその位置へ移動します。</p>
+  <p><strong>ストリートビュー：</strong> 地図の任意の地点、または表示中の経路をクリックすると、その地点の緯度・経度を示すマーカーとポップアップが開きます。「Googleストリートビューで開く」をクリックすると新しいタブでGoogleマップのストリートビューを表示します。見つからない地点では画像が表示されない、または近くの撮影地点へ移動する場合があります。ポップアップには通常のGoogleマップで地点を開くリンクもあります。</p>
+  <p><strong>GPSファイルはサーバーに送信されません。</strong> 読み込んだ経路は現在のブラウザのIndexedDBへ保存されます。ブラウザのデータ削除・プライベートモードなどでは消えることがあります。元のFIT/GPXファイルは保管してください。</p>
+  <p>地図画像はOpenStreetMapの地図タイルサーバーから取得するため、表示地域に対応するタイル座標などはその提供者に伝わります。ストリートビューのリンクを押すと、クリックした地点の座標がGoogleにURLとして送信されます（クリックしただけではGoogleへは送信しません）。</p>
+  <p>初期の7経路は画面確認用に合成した架空のデータです。実在する道路を正確にたどるものではありません。FIT解析は標準的な位置記録に対応した軽量実装です（特殊なFITファイルには未対応の場合があります）。</p>
+  <p class="dialog-caption">公開サイトには個人の走行ログを含めないでください。GeoJSON出力には個人の位置情報が含まれます。</p>
+</dialog>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "cycling-route-viewer",
+  "version": "0.2.1",
+  "private": true,
+  "type": "module",
+  "description": "Local-first GPX/FIT map viewer. Deployable as static files to GitHub Pages.",
+  "scripts": {
+    "test": "node --test",
+    "build:local": "node scripts/build-local-preview.mjs"
+  }
+}
